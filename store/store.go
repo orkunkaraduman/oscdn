@@ -119,30 +119,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 		if err != nil {
 			return
 		}
-		pr, pw := io.Pipe()
-		go func() {
-			select {
-			case <-ctx.Done():
-				_ = pr.Close()
-			case <-download:
-			}
-		}()
-		go func() {
-			select {
-			case <-ctx.Done():
-				_ = pw.Close()
-			case <-download:
-				_ = pw.Close()
-			}
-			var err error
-			for {
-				_, err = io.Copy(pw, data.Body())
-				if err != nil {
-
-				}
-			}
-		}()
-		return data.Info.StatusCode, data.Header.Clone(), pr, nil
+		return data.Info.StatusCode, data.Header.Clone(), s.wrapDownload(ctx, download, data), nil
 	}
 
 	return
@@ -159,4 +136,39 @@ func (s *Store) getDataPath(rawURL string, subDir string) string {
 
 func (s *Store) startDownload(u *url.URL, host string) {
 
+}
+
+func (s *Store) wrapDownload(ctx context.Context, download chan struct{}, data *_Data) io.ReadCloser {
+	pr, pw := io.Pipe()
+	end := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = pr.Close()
+		case <-end:
+		}
+	}()
+	go func() {
+		var err error
+		defer close(end)
+		//goland:noinspection GoUnhandledErrorResult
+		defer pw.Close()
+		for {
+			_, err = io.Copy(pw, data.Body())
+			if err != nil {
+				switch err {
+				case io.ErrClosedPipe:
+				default:
+				}
+				return
+			}
+			select {
+			case <-download:
+				return
+			default:
+				time.Sleep(25 * time.Second)
+			}
+		}
+	}()
+	return pr
 }

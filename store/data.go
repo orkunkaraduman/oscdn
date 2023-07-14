@@ -39,6 +39,11 @@ func (d *_Data) Create() (err error) {
 	if err != nil {
 		return fmt.Errorf("unable to create directories: %w", err)
 	}
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(filepath.FromSlash(path.Clean(d.Path)))
+		}
+	}()
 
 	err = d.openFiles(true)
 	if err != nil {
@@ -47,7 +52,6 @@ func (d *_Data) Create() (err error) {
 	defer func() {
 		if err != nil {
 			_ = d.closeFiles()
-			_ = os.RemoveAll(filepath.FromSlash(path.Clean(d.Path)))
 		}
 	}()
 
