@@ -18,7 +18,8 @@ type _Data struct {
 	Info struct {
 		StatusCode    int
 		ContentLength int64
-		Expires       time.Time
+		CreatedAt     time.Time
+		ExpiresAt     time.Time
 	}
 	Header http.Header
 
@@ -141,7 +142,7 @@ func (d *_Data) openFiles(create bool) (err error) {
 		}
 	}()
 
-	flag := os.O_RDWR
+	flag := os.O_RDONLY
 	if create {
 		flag = os.O_RDWR | os.O_CREATE | os.O_TRUNC
 	}

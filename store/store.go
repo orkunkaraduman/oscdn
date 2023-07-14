@@ -19,6 +19,8 @@ import (
 	"github.com/goinsane/logng"
 
 	"github.com/orkunkaraduman/oscdn/fsutil"
+	"github.com/orkunkaraduman/oscdn/httphdr"
+	"github.com/orkunkaraduman/oscdn/ioutil"
 	"github.com/orkunkaraduman/oscdn/namedlock"
 )
 
@@ -48,7 +50,7 @@ func New(config Config) (s *Store, err error) {
 				}).DialContext,
 				TLSClientConfig:        config.TLSConfig.Clone(),
 				TLSHandshakeTimeout:    3 * time.Second,
-				MaxIdleConns:           config.DownloadMaxIdle,
+				MaxIdleConns:           config.MaxIdleConns,
 				IdleConnTimeout:        65 * time.Second,
 				ResponseHeaderTimeout:  5 * time.Second,
 				ExpectContinueTimeout:  1 * time.Second,
@@ -159,7 +161,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 			logger.Error(err)
 			return
 		}
-		if data.Info.Expires.After(now) {
+		if data.Info.ExpiresAt.After(now) {
 			return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, nil), nil
 		}
 		_ = data.Close()
@@ -237,14 +239,98 @@ func (s *Store) pipeData(ctx context.Context, data *_Data, download chan struct{
 	return pr
 }
 
-func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, data *_Data) (err error) {
+func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyURL string, dataPath string) (dynamic bool, err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
 	req := (&http.Request{
 		Method: http.MethodGet,
 		URL:    u,
 		Header: http.Header{},
 		Host:   host,
 	}).WithContext(ctx)
+
 	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("request error: %w", err)
+	}
 	//goland:noinspection GoUnhandledErrorResult
 	defer resp.Body.Close()
+
+	now := time.Now()
+
+	data := &_Data{
+		Path: dataPath,
+	}
+	data.Header = resp.Header.Clone()
+	data.Info.StatusCode = resp.StatusCode
+	data.Info.ContentLength = resp.ContentLength
+	data.Info.CreatedAt = now
+	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
+
+	hasCacheControl := false
+	if h := resp.Header.Get("Cache-Control"); h != "" {
+		hasCacheControl = true
+		cc := httphdr.ParseCacheControl(h)
+		maxAge := cc.MaxAge()
+		if maxAge < 0 {
+			maxAge = cc.SMaxAge()
+		}
+		switch {
+		case cc.NoCache():
+			data.Info.ExpiresAt = now
+		case maxAge >= 0:
+			expiresAt := now.Add(maxAge)
+			if expiresAt.Sub(data.Info.ExpiresAt) < 0 {
+				data.Info.ExpiresAt = expiresAt
+			}
+		}
+	}
+	if h := resp.Header.Get("Expires"); h != "" && !hasCacheControl {
+		expiresAt, _ := time.Parse(time.RFC1123, h)
+		if expiresAt.Sub(data.Info.ExpiresAt) < 0 {
+			data.Info.ExpiresAt = expiresAt
+		}
+	}
+
+	dynamic = (resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound
+	if dynamic {
+		return dynamic, nil
+	}
+
+	err = data.Create()
+	if err != nil {
+		logger.Error(err)
+		return false, err
+	}
+
+	download := make(chan struct{})
+
+	s.downloadsMu.Lock()
+	s.downloads[keyURL] = download
+	s.downloadsMu.Unlock()
+
+	go func() {
+		//goland:noinspection GoUnhandledErrorResult
+		defer data.Close()
+
+		written, copyErr := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
+		_ = written
+
+		_ = data.Close()
+		close(download)
+
+		locker := s.namedLock.Locker(keyURL)
+		locker.Lock()
+		defer locker.Unlock()
+
+		s.downloadsMu.Lock()
+		delete(s.downloads, keyURL)
+		s.downloadsMu.Unlock()
+
+		if copyErr != nil {
+			_ = os.RemoveAll(data.Path)
+		}
+	}()
+
+	return false, nil
 }
