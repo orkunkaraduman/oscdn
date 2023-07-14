@@ -168,13 +168,19 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 		_ = os.RemoveAll(data.Path)
 	}
 
-	err = data.Create()
+	download, err = s.startDownload(ctx, u, host, keyURL, data.Path)
+	if err != nil {
+		return
+	}
+	data = &_Data{
+		Path: data.Path,
+	}
+	err = data.Open()
 	if err != nil {
 		logger.Error(err)
 		return
 	}
-
-	return
+	return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, nil), nil
 }
 
 func (s *Store) getDataPath(rawURL string, subDir string) string {
@@ -239,7 +245,7 @@ func (s *Store) pipeData(ctx context.Context, data *_Data, download chan struct{
 	return pr
 }
 
-func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyURL string, dataPath string) (dynamic bool, err error) {
+func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyURL string, dataPath string) (download chan struct{}, err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	req := (&http.Request{
@@ -251,7 +257,7 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("request error: %w", err)
+		return nil, fmt.Errorf("request error: %w", err)
 	}
 	//goland:noinspection GoUnhandledErrorResult
 	defer resp.Body.Close()
@@ -292,18 +298,18 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 		}
 	}
 
-	dynamic = (resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound
+	dynamic := (resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound
 	if dynamic {
-		return dynamic, nil
+		return nil, ErrDynamicContent
 	}
 
 	err = data.Create()
 	if err != nil {
 		logger.Error(err)
-		return false, err
+		return nil, err
 	}
 
-	download := make(chan struct{})
+	download = make(chan struct{})
 
 	s.downloadsMu.Lock()
 	s.downloads[keyURL] = download
@@ -332,5 +338,5 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 		}
 	}()
 
-	return false, nil
+	return download, nil
 }
