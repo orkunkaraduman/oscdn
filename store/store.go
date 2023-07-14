@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/goinsane/filelock"
-	"github.com/goinsane/logng"
 
 	"github.com/orkunkaraduman/oscdn/namedlock"
 )
@@ -24,7 +23,7 @@ type Store struct {
 	orjConfig   Config
 	httpClient  *http.Client
 	namedLock   *namedlock.NamedLock
-	downloads   map[string]*_Download
+	downloads   map[string]chan struct{}
 	downloadsMu sync.RWMutex
 
 	lockFile *filelock.File
@@ -54,7 +53,7 @@ func New(config Config) (s *Store, err error) {
 			},
 		},
 		namedLock: namedlock.New(),
-		downloads: make(map[string]*_Download, 4096),
+		downloads: make(map[string]chan struct{}, 4096),
 	}
 
 	if s.config.Path == "" {
@@ -82,12 +81,13 @@ func (s *Store) Release() (err error) {
 	return
 }
 
-func (s *Store) Get(ctx context.Context, rawURL string, host string) (h http.Header, r io.ReadCloser, err error) {
-	logger, _ := ctx.Value("logger").(*logng.Logger)
+func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode int, header http.Header, r io.ReadCloser, err error) {
+	//logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to parse raw url: %w", err)
+		err = fmt.Errorf("unable to parse raw url: %w", err)
+		return
 	}
 
 	keyHost := u.Host
@@ -112,8 +112,37 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (h http.Hea
 	s.downloadsMu.RUnlock()
 
 	if download != nil {
+		data := &_Data{
+			Path: dataPath,
+		}
+		err = data.Open()
+		if err != nil {
+			return
+		}
 		pr, pw := io.Pipe()
+		go func() {
+			select {
+			case <-ctx.Done():
+				_ = pr.Close()
+			case <-download:
+			}
+		}()
+		go func() {
+			select {
+			case <-ctx.Done():
+				_ = pw.Close()
+			case <-download:
+				_ = pw.Close()
+			}
+			var err error
+			for {
+				_, err = io.Copy(pw, data.Body())
+				if err != nil {
 
+				}
+			}
+		}()
+		return data.Info.StatusCode, data.Header.Clone(), pr, nil
 	}
 
 	return
@@ -126,4 +155,8 @@ func (s *Store) getDataPath(rawURL string, subDir string) string {
 		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
 	}
 	return result
+}
+
+func (s *Store) startDownload(u *url.URL, host string) {
+
 }

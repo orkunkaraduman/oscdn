@@ -3,7 +3,6 @@ package store
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -33,7 +32,7 @@ type _Data struct {
 
 func (d *_Data) Create() (err error) {
 	if d.initialized {
-		return errors.New("already initialized")
+		panic("already initialized")
 	}
 
 	err = os.MkdirAll(filepath.FromSlash(path.Clean(d.Path)), 0777)
@@ -56,10 +55,18 @@ func (d *_Data) Create() (err error) {
 	if err != nil {
 		return fmt.Errorf("unable to marshal to info file: %w", err)
 	}
+	err = d.infoFile.Sync()
+	if err != nil {
+		return fmt.Errorf("unable to sync info file: %w", err)
+	}
 
 	err = d.Header.Write(d.headerFile)
 	if err != nil {
 		return fmt.Errorf("unable to serialize to header file: %w", err)
+	}
+	err = d.headerFile.Sync()
+	if err != nil {
+		return fmt.Errorf("unable to sync header file: %w", err)
 	}
 
 	d.initialized = true
@@ -68,7 +75,7 @@ func (d *_Data) Create() (err error) {
 
 func (d *_Data) Open() (err error) {
 	if d.initialized {
-		return errors.New("already initialized")
+		panic("already initialized")
 	}
 
 	err = d.openFiles(false)
@@ -111,7 +118,7 @@ func (d *_Data) Open() (err error) {
 
 func (d *_Data) Close() (err error) {
 	if d.initialized {
-		return errors.New("not initialized")
+		panic("not initialized")
 	}
 	d.closeOnce.Do(func() {
 		err = d.closeFiles()
