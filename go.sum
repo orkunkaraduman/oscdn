@@ -1,0 +1,6 @@
+github.com/goinsane/filelock v0.2.0 h1:C8y681XLyUxgBK0ChEkdGbXyWisH1B1prLE+NkMFqfQ=
+github.com/goinsane/filelock v0.2.0/go.mod h1:DJCr/dUOyXcbdYAnlf4Je/CaZNSnibuBcr3UNKYoEGk=
+github.com/goinsane/ioshape v0.4.0 h1:U5CMpaRh6fCyfsjUc9wGyF4bt3GStJm2vwiEtQJB/1o=
+github.com/goinsane/ioshape v0.4.0/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
+github.com/goinsane/xcontext v1.7.0 h1:Jz6Gh2WCOu/u84d2iCrPUMfOwFAKLfCDs4mLGTunN+8=
+github.com/goinsane/xcontext v1.7.0/go.mod h1:y+fK+cXBf9T6MBP7XFXQbYrsyhzlhRVVIIRVTxc6QjY=
