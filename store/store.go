@@ -111,7 +111,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 		RawQuery: u.RawQuery,
 	}).String()
 
-	data := &_Data{
+	data := &Data{
 		Path: s.getDataPath(keyURL, u.Host),
 	}
 
@@ -172,7 +172,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 	if err != nil {
 		return
 	}
-	data = &_Data{
+	data = &Data{
 		Path: data.Path,
 	}
 	err = data.Open()
@@ -192,7 +192,7 @@ func (s *Store) getDataPath(rawURL string, subDir string) string {
 	return result
 }
 
-func (s *Store) pipeData(ctx context.Context, data *_Data, download chan struct{}) io.Reader {
+func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.Reader {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	pr, pw := io.Pipe()
@@ -264,7 +264,7 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 
 	now := time.Now()
 
-	data := &_Data{
+	data := &Data{
 		Path: dataPath,
 	}
 	data.Header = resp.Header.Clone()

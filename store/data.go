@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-type _Data struct {
+type Data struct {
 	Path string
 	Info struct {
 		StatusCode    int
@@ -31,7 +31,7 @@ type _Data struct {
 	bodyFile   *os.File
 }
 
-func (d *_Data) Create() (err error) {
+func (d *Data) Create() (err error) {
 	if d.initialized {
 		panic("already initialized")
 	}
@@ -78,7 +78,7 @@ func (d *_Data) Create() (err error) {
 	return nil
 }
 
-func (d *_Data) Open() (err error) {
+func (d *Data) Open() (err error) {
 	if d.initialized {
 		panic("already initialized")
 	}
@@ -93,7 +93,7 @@ func (d *_Data) Open() (err error) {
 		}
 	}()
 
-	d.Info = (&_Data{}).Info
+	d.Info = (&Data{}).Info
 	err = json.NewDecoder(d.infoFile).Decode(&d.Info)
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal from info file: %w", err)
@@ -121,7 +121,7 @@ func (d *_Data) Open() (err error) {
 	return nil
 }
 
-func (d *_Data) Close() (err error) {
+func (d *Data) Close() (err error) {
 	if d.initialized {
 		panic("not initialized")
 	}
@@ -131,11 +131,11 @@ func (d *_Data) Close() (err error) {
 	return
 }
 
-func (d *_Data) Body() *os.File {
+func (d *Data) Body() *os.File {
 	return d.bodyFile
 }
 
-func (d *_Data) openFiles(create bool) (err error) {
+func (d *Data) openFiles(create bool) (err error) {
 	defer func() {
 		if err != nil {
 			_ = d.closeFiles()
@@ -166,7 +166,7 @@ func (d *_Data) openFiles(create bool) (err error) {
 	return nil
 }
 
-func (d *_Data) closeFiles() (err error) {
+func (d *Data) closeFiles() (err error) {
 	if d.infoFile != nil {
 		if e := d.infoFile.Close(); e != nil && err == nil {
 			err = fmt.Errorf("unable to close info file: %w", e)
