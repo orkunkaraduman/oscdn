@@ -122,7 +122,7 @@ func (d *Data) Open() (err error) {
 }
 
 func (d *Data) Close() (err error) {
-	if d.initialized {
+	if !d.initialized {
 		panic("not initialized")
 	}
 	d.closeOnce.Do(func() {

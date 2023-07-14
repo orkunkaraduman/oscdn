@@ -180,7 +180,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 		logger.Error(err)
 		return
 	}
-	return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, nil), nil
+	return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, download), nil
 }
 
 func (s *Store) getDataPath(rawURL string, subDir string) string {
@@ -223,6 +223,9 @@ func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}
 				}
 				return
 			}
+			if download == nil {
+				return
+			}
 			select {
 			case <-ctx.Done():
 				return
@@ -260,7 +263,11 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 		return nil, fmt.Errorf("request error: %w", err)
 	}
 	//goland:noinspection GoUnhandledErrorResult
-	defer resp.Body.Close()
+	defer func() {
+		if err != nil {
+			_ = resp.Body.Close()
+		}
+	}()
 
 	now := time.Now()
 
