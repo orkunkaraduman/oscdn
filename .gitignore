@@ -14,7 +14,8 @@
 *.dll
 *.py[co]
 
-*.DS_Store
+.DS_Store
+*.icloud
 
 *.project
 *.includepath
