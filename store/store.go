@@ -29,7 +29,6 @@ type Store struct {
 	releaseOnce sync.Once
 
 	config      Config
-	orjConfig   Config
 	httpClient  *http.Client
 	namedLock   *namedlock.NamedLock
 	downloads   map[string]chan struct{}
@@ -40,9 +39,8 @@ type Store struct {
 
 func New(config Config) (s *Store, err error) {
 	s = &Store{
-		ctx:       xcontext.WithCancelable2(context.Background()),
-		config:    config,
-		orjConfig: config,
+		ctx:    xcontext.WithCancelable2(context.Background()),
+		config: config,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
@@ -92,6 +90,8 @@ func (s *Store) Release() (err error) {
 }
 
 func (s *Store) Get(ctx context.Context, rawURL string, host string) (result GetResult, err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
 	select {
 	case <-s.ctx.Done():
 		err = ErrReleased
@@ -99,9 +99,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	default:
 	}
 
-	logger, _ := ctx.Value("logger").(*logng.Logger)
-
-	result.ReadCloser = io.NopCloser(&ioutil.ErrReader{Err: io.EOF})
+	result.ReadCloser = io.NopCloser(&ioutil.NopReader{Err: io.EOF})
 
 	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
@@ -310,6 +308,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		Header: http.Header{},
 		Host:   keyURL.Host,
 	}).WithContext(s.ctx)
+	if s.config.UserAgent != "" {
+		req.Header.Set("User-Agent", s.config.UserAgent)
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -381,6 +382,8 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	go func() {
 		defer s.wg.Done()
 
+		logger := s.config.Logger
+
 		_, copyErr := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
@@ -395,6 +398,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		s.downloadsMu.Unlock()
 
 		if copyErr != nil {
+			logger.Debug(err)
 			_ = os.RemoveAll(fsutil.ToOSPath(data.Path))
 		}
 	}()
