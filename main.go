@@ -28,18 +28,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//goland:noinspection GoUnhandledErrorResult
-	defer s.Release()
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+
 	go func() {
+		defer wg.Done()
 		<-ctx.Done()
 		_ = s.Release()
 	}()
-
-	var wg sync.WaitGroup
-
-	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
