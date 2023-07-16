@@ -24,8 +24,9 @@ import (
 )
 
 type Store struct {
-	ctx xcontext.CancelableContext
-	wg  sync.WaitGroup
+	ctx         xcontext.CancelableContext
+	wg          sync.WaitGroup
+	releaseOnce sync.Once
 
 	config      Config
 	orjConfig   Config
@@ -80,23 +81,21 @@ func New(config Config) (s *Store, err error) {
 }
 
 func (s *Store) Release() (err error) {
-	select {
-	case <-s.ctx.Done():
-		return
-	default:
+	s.releaseOnce.Do(func() {
 		s.ctx.Cancel()
-	}
-	defer s.wg.Wait()
-	if e := s.lockFile.Release(); e != nil && err == nil {
-		err = fmt.Errorf("unable to release store lock: %w", e)
-	}
+		s.wg.Wait()
+		if e := s.lockFile.Release(); e != nil && err == nil {
+			err = fmt.Errorf("unable to release store lock: %w", e)
+		}
+	})
 	return
 }
 
 func (s *Store) Get(ctx context.Context, rawURL string, host string) (result GetResult, err error) {
 	select {
 	case <-s.ctx.Done():
-		panic("store released")
+		err = ErrReleased
+		return
 	default:
 	}
 
@@ -277,6 +276,9 @@ func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}
 			select {
 			case <-ctx.Done():
 				return
+			case <-s.ctx.Done():
+				_ = pw.CloseWithError(ErrReleased)
+				return
 			case <-download:
 				_, err = io.Copy(pw, data.Body())
 				if err != nil {
@@ -307,7 +309,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		URL:    baseURL,
 		Header: http.Header{},
 		Host:   keyURL.Host,
-	}).WithContext(ctx)
+	}).WithContext(s.ctx)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -379,8 +381,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	go func() {
 		defer s.wg.Done()
 
-		written, copyErr := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
-		_ = written
+		_, copyErr := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
 		close(download)
