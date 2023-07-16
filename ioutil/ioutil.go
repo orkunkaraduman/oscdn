@@ -38,3 +38,11 @@ func CopyRate(dst io.Writer, src io.Reader, burst, rate int64) (written int64, e
 	}
 	return written, nil
 }
+
+type ErrReader struct {
+	Err error
+}
+
+func (r *ErrReader) Read(p []byte) (n int, err error) {
+	return 0, r.Err
+}
