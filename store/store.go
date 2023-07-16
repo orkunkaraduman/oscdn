@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -65,7 +63,7 @@ func New(config Config) (s *Store, err error) {
 	if s.config.Path == "" {
 		s.config.Path = "."
 	}
-	s.lockFile, err = filelock.Create(filepath.FromSlash(path.Clean(s.config.Path+"/lock")), 0666)
+	s.lockFile, err = filelock.Create(fsutil.ToOSPath(s.config.Path+"/lock"), 0666)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get store lock: %w", err)
 	}
