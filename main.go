@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/goinsane/logng"
@@ -29,19 +31,23 @@ func main() {
 	//goland:noinspection GoUnhandledErrorResult
 	defer s.Release()
 
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+
 	var wg sync.WaitGroup
 
 	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
-		statusCode, header, r, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "")
+		result, err := s.Get(ctx, "https://speed.hetzner.de/100MB.bin", "")
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(statusCode)
-		fmt.Printf("%+v\n", header)
-		written, err := io.Copy(io.Discard, r)
+		//goland:noinspection GoUnhandledErrorResult
+		defer result.Close()
+		fmt.Println(result.StatusCode)
+		fmt.Printf("%+v\n", result.Header)
+		written, err := io.Copy(io.Discard, result)
 		if err != nil {
 			panic(err)
 		}
@@ -49,13 +55,15 @@ func main() {
 	}()
 	go func() {
 		defer wg.Done()
-		statusCode, header, r, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "")
+		result, err := s.Get(ctx, "https://speed.hetzner.de/100MB.bin", "")
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(statusCode)
-		fmt.Printf("%+v\n", header)
-		written, err := io.Copy(io.Discard, r)
+		//goland:noinspection GoUnhandledErrorResult
+		defer result.Close()
+		fmt.Println(result.StatusCode)
+		fmt.Printf("%+v\n", result.Header)
+		written, err := io.Copy(io.Discard, result)
 		if err != nil {
 			panic(err)
 		}
