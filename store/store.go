@@ -101,7 +101,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 	keyRawURL := keyURL.String()
 
 	data := &Data{
-		Path: s.getDataPath(keyRawURL, baseURL.Host),
+		Path: s.getDataPath(baseURL, keyURL),
 	}
 
 	logger = logger.WithFieldKeyVals("dataPath", data.Path)
@@ -172,15 +172,6 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 	return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, download), nil
 }
 
-func (s *Store) getDataPath(rawURL string, subDir string) string {
-	h := sha256.Sum256([]byte((rawURL)))
-	result := s.config.Path + "/" + subDir
-	for i, j := 0, len(h); i < j; i = i + 2 {
-		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
-	}
-	return result
-}
-
 func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, err error) {
 	baseURL, err = url.Parse(rawURL)
 	if err != nil {
@@ -200,6 +191,15 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 	}
 
 	return
+}
+
+func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
+	result := s.config.Path + "/" + baseURL.Host
+	h := sha256.Sum256([]byte((keyURL.String())))
+	for i, j := 0, len(h); i < j; i = i + 2 {
+		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
+	}
+	return result
 }
 
 func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.Reader {
