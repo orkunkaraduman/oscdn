@@ -178,6 +178,12 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 		err = fmt.Errorf("unable to parse raw url: %w", err)
 		return
 	}
+	if (baseURL.Scheme != "http" && baseURL.Scheme != "https") ||
+		baseURL.Opaque != "" ||
+		baseURL.User != nil {
+		err = errors.New("invalid raw url")
+		return
+	}
 	baseURL = &url.URL{
 		Scheme:   baseURL.Scheme,
 		Host:     baseURL.Host,
