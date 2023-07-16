@@ -15,6 +15,7 @@ import (
 
 	"github.com/goinsane/filelock"
 	"github.com/goinsane/logng"
+	"github.com/goinsane/xcontext"
 
 	"github.com/orkunkaraduman/oscdn/fsutil"
 	"github.com/orkunkaraduman/oscdn/httphdr"
@@ -23,6 +24,9 @@ import (
 )
 
 type Store struct {
+	ctx xcontext.CancelableContext
+	wg  sync.WaitGroup
+
 	config      Config
 	orjConfig   Config
 	httpClient  *http.Client
@@ -31,12 +35,11 @@ type Store struct {
 	downloadsMu sync.RWMutex
 
 	lockFile *filelock.File
-
-	releaseOnce sync.Once
 }
 
 func New(config Config) (s *Store, err error) {
 	s = &Store{
+		ctx:       xcontext.WithCancelable2(context.Background()),
 		config:    config,
 		orjConfig: config,
 		httpClient: &http.Client{
@@ -77,16 +80,29 @@ func New(config Config) (s *Store, err error) {
 }
 
 func (s *Store) Release() (err error) {
-	s.releaseOnce.Do(func() {
-		if e := s.lockFile.Release(); e != nil && err == nil {
-			err = fmt.Errorf("unable to release store lock: %w", e)
-		}
-	})
+	select {
+	case <-s.ctx.Done():
+		return
+	default:
+		s.ctx.Cancel()
+	}
+	defer s.wg.Wait()
+	if e := s.lockFile.Release(); e != nil && err == nil {
+		err = fmt.Errorf("unable to release store lock: %w", e)
+	}
 	return
 }
 
-func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode int, header http.Header, r io.Reader, err error) {
+func (s *Store) Get(ctx context.Context, rawURL string, host string) (result GetResult, err error) {
+	select {
+	case <-s.ctx.Done():
+		panic("store released")
+	default:
+	}
+
 	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	result.ReadCloser = io.NopCloser(&ioutil.ErrReader{Err: io.EOF})
 
 	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
@@ -121,7 +137,13 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 			logger.Error(err)
 			return
 		}
-		return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, download), nil
+		return GetResult{
+			ReadCloser: s.pipeData(ctx, data, download),
+			BaseURL:    baseURL,
+			KeyURL:     keyURL,
+			StatusCode: data.Info.StatusCode,
+			Header:     data.Header.Clone(),
+		}, nil
 	}
 
 	ok, err := fsutil.IsExists(data.Path)
@@ -149,7 +171,13 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 			return
 		}
 		if data.Info.ExpiresAt.After(now) {
-			return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, nil), nil
+			return GetResult{
+				ReadCloser: s.pipeData(ctx, data, nil),
+				BaseURL:    baseURL,
+				KeyURL:     keyURL,
+				StatusCode: data.Info.StatusCode,
+				Header:     data.Header.Clone(),
+			}, nil
 		}
 		_ = data.Close()
 		_ = os.RemoveAll(fsutil.ToOSPath(data.Path))
@@ -167,7 +195,13 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 		logger.Error(err)
 		return
 	}
-	return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, download), nil
+	return GetResult{
+		ReadCloser: s.pipeData(ctx, data, download),
+		BaseURL:    baseURL,
+		KeyURL:     keyURL,
+		StatusCode: data.Info.StatusCode,
+		Header:     data.Header.Clone(),
+	}, nil
 }
 
 func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, err error) {
@@ -213,23 +247,16 @@ func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
 	return result
 }
 
-func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.Reader {
+func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.ReadCloser {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	pr, pw := io.Pipe()
-	end := make(chan struct{})
 
+	s.wg.Add(1)
 	go func() {
-		select {
-		case <-ctx.Done():
-			_ = pr.Close()
-		case <-end:
-		}
-	}()
+		defer s.wg.Done()
 
-	go func() {
 		var err error
-		defer close(end)
 		//goland:noinspection GoUnhandledErrorResult
 		defer data.Close()
 		//goland:noinspection GoUnhandledErrorResult
@@ -348,9 +375,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	s.downloads[keyRawURL] = download
 	s.downloadsMu.Unlock()
 
+	s.wg.Add(1)
 	go func() {
-		//goland:noinspection GoUnhandledErrorResult
-		defer data.Close()
+		defer s.wg.Done()
 
 		written, copyErr := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 		_ = written
