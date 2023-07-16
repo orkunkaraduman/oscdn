@@ -93,39 +93,28 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	u, err := url.Parse(rawURL)
+	baseURL, keyURL, err := s.getURLs(rawURL, host)
 	if err != nil {
-		err = fmt.Errorf("unable to parse raw url: %w", err)
 		logger.Error(err)
 		return
 	}
-
-	keyHost := u.Host
-	if host != "" {
-		keyHost = host
-	}
-	keyURL := (&url.URL{
-		Scheme:   u.Scheme,
-		Host:     keyHost,
-		Path:     u.Path,
-		RawQuery: u.RawQuery,
-	}).String()
+	keyRawURL := keyURL.String()
 
 	data := &Data{
-		Path: s.getDataPath(keyURL, u.Host),
+		Path: s.getDataPath(keyRawURL, baseURL.Host),
 	}
 
 	logger = logger.WithFieldKeyVals("dataPath", data.Path)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	locker := s.namedLock.Locker(keyURL)
+	locker := s.namedLock.Locker(keyRawURL)
 	locker.Lock()
 	defer locker.Unlock()
 
 	now := time.Now()
 
 	s.downloadsMu.RLock()
-	download := s.downloads[keyURL]
+	download := s.downloads[keyRawURL]
 	s.downloadsMu.RUnlock()
 
 	if download != nil {
@@ -168,7 +157,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 		_ = os.RemoveAll(data.Path)
 	}
 
-	download, err = s.startDownload(ctx, u, host, keyURL, data.Path)
+	download, err = s.startDownload(ctx, baseURL, host, keyRawURL, data.Path)
 	if err != nil {
 		return
 	}
@@ -190,6 +179,27 @@ func (s *Store) getDataPath(rawURL string, subDir string) string {
 		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
 	}
 	return result
+}
+
+func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, err error) {
+	baseURL, err = url.Parse(rawURL)
+	if err != nil {
+		err = fmt.Errorf("unable to parse raw url: %w", err)
+		return
+	}
+
+	keyHost := baseURL.Host
+	if host != "" {
+		keyHost = host
+	}
+	keyURL = &url.URL{
+		Scheme:   baseURL.Scheme,
+		Host:     keyHost,
+		Path:     baseURL.Path,
+		RawQuery: baseURL.RawQuery,
+	}
+
+	return
 }
 
 func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.Reader {
