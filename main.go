@@ -32,6 +32,10 @@ func main() {
 	defer s.Release()
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-ctx.Done()
+		_ = s.Release()
+	}()
 
 	var wg sync.WaitGroup
 
@@ -39,9 +43,10 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		result, err := s.Get(ctx, "https://speed.hetzner.de/100MB.bin", "")
+		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "")
 		if err != nil {
-			panic(err)
+			logng.Error(err)
+			return
 		}
 		//goland:noinspection GoUnhandledErrorResult
 		defer result.Close()
@@ -49,15 +54,17 @@ func main() {
 		fmt.Printf("%+v\n", result.Header)
 		written, err := io.Copy(io.Discard, result)
 		if err != nil {
-			panic(err)
+			logng.Error(err)
+			return
 		}
 		fmt.Println(written)
 	}()
 	go func() {
 		defer wg.Done()
-		result, err := s.Get(ctx, "https://speed.hetzner.de/100MB.bin", "")
+		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "")
 		if err != nil {
-			panic(err)
+			logng.Error(err)
+			return
 		}
 		//goland:noinspection GoUnhandledErrorResult
 		defer result.Close()
@@ -65,7 +72,8 @@ func main() {
 		fmt.Printf("%+v\n", result.Header)
 		written, err := io.Copy(io.Discard, result)
 		if err != nil {
-			panic(err)
+			logng.Error(err)
+			return
 		}
 		fmt.Println(written)
 	}()
