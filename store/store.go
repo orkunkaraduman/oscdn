@@ -157,7 +157,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 		_ = os.RemoveAll(data.Path)
 	}
 
-	download, err = s.startDownload(ctx, baseURL, host, keyRawURL, data.Path)
+	download, err = s.startDownload(ctx, baseURL, keyURL)
 	if err != nil {
 		return
 	}
@@ -177,6 +177,12 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 	if err != nil {
 		err = fmt.Errorf("unable to parse raw url: %w", err)
 		return
+	}
+	baseURL = &url.URL{
+		Scheme:   baseURL.Scheme,
+		Host:     baseURL.Host,
+		Path:     baseURL.Path,
+		RawQuery: baseURL.RawQuery,
 	}
 
 	keyHost := baseURL.Host
@@ -258,14 +264,16 @@ func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}
 	return pr
 }
 
-func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyURL string, dataPath string) (download chan struct{}, err error) {
+func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (download chan struct{}, err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	keyRawURL := keyURL.String()
 
 	req := (&http.Request{
 		Method: http.MethodGet,
-		URL:    u,
+		URL:    baseURL,
 		Header: http.Header{},
-		Host:   host,
+		Host:   keyURL.Host,
 	}).WithContext(ctx)
 
 	resp, err := s.httpClient.Do(req)
@@ -282,7 +290,7 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 	now := time.Now()
 
 	data := &Data{
-		Path: dataPath,
+		Path: s.getDataPath(baseURL, keyURL),
 	}
 	data.Header = resp.Header.Clone()
 	data.Info.StatusCode = resp.StatusCode
@@ -329,7 +337,7 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 	download = make(chan struct{})
 
 	s.downloadsMu.Lock()
-	s.downloads[keyURL] = download
+	s.downloads[keyRawURL] = download
 	s.downloadsMu.Unlock()
 
 	go func() {
@@ -342,12 +350,12 @@ func (s *Store) startDownload(ctx context.Context, u *url.URL, host string, keyU
 		_ = data.Close()
 		close(download)
 
-		locker := s.namedLock.Locker(keyURL)
+		locker := s.namedLock.Locker(keyRawURL)
 		locker.Lock()
 		defer locker.Unlock()
 
 		s.downloadsMu.Lock()
-		delete(s.downloads, keyURL)
+		delete(s.downloads, keyRawURL)
 		s.downloadsMu.Unlock()
 
 		if copyErr != nil {
