@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/orkunkaraduman/oscdn/fsutil"
 )
 
 type Data struct {
@@ -36,13 +36,13 @@ func (d *Data) Create() (err error) {
 		panic("already initialized")
 	}
 
-	err = os.MkdirAll(filepath.FromSlash(path.Clean(d.Path)), 0777)
+	err = os.MkdirAll(fsutil.ToOSPath(d.Path), 0777)
 	if err != nil {
 		return fmt.Errorf("unable to create directories: %w", err)
 	}
 	defer func() {
 		if err != nil {
-			_ = os.RemoveAll(filepath.FromSlash(path.Clean(d.Path)))
+			_ = os.RemoveAll(fsutil.ToOSPath(d.Path))
 		}
 	}()
 
@@ -148,17 +148,17 @@ func (d *Data) openFiles(create bool) (err error) {
 	}
 	perm := os.FileMode(0666)
 
-	d.infoFile, err = os.OpenFile(filepath.FromSlash(path.Clean(d.Path+"/info")), flag, perm)
+	d.infoFile, err = os.OpenFile(fsutil.ToOSPath(d.Path+"/info"), flag, perm)
 	if err != nil {
 		return fmt.Errorf("unable to open info file: %w", err)
 	}
 
-	d.headerFile, err = os.OpenFile(filepath.FromSlash(path.Clean(d.Path+"/header")), flag, perm)
+	d.headerFile, err = os.OpenFile(fsutil.ToOSPath(d.Path+"/header"), flag, perm)
 	if err != nil {
 		return fmt.Errorf("unable to open header file: %w", err)
 	}
 
-	d.bodyFile, err = os.OpenFile(filepath.FromSlash(path.Clean(d.Path+"/body")), flag, perm)
+	d.bodyFile, err = os.OpenFile(fsutil.ToOSPath(d.Path+"/body"), flag, perm)
 	if err != nil {
 		return fmt.Errorf("unable to open body file: %w", err)
 	}

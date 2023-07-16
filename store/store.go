@@ -128,7 +128,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 
 	ok, err := fsutil.IsExists(data.Path)
 	if err != nil {
-		err = fmt.Errorf("unable to check data path exists: %w", err)
+		err = fmt.Errorf("unable to check data path is exists: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -154,7 +154,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (statusCode
 			return data.Info.StatusCode, data.Header.Clone(), s.pipeData(ctx, data, nil), nil
 		}
 		_ = data.Close()
-		_ = os.RemoveAll(data.Path)
+		_ = os.RemoveAll(fsutil.ToOSPath(data.Path))
 	}
 
 	download, err = s.startDownload(ctx, baseURL, keyURL)
@@ -366,7 +366,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		s.downloadsMu.Unlock()
 
 		if copyErr != nil {
-			_ = os.RemoveAll(data.Path)
+			_ = os.RemoveAll(fsutil.ToOSPath(data.Path))
 		}
 	}()
 

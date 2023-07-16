@@ -1,6 +1,10 @@
 package fsutil
 
-import "os"
+import (
+	"os"
+	"path"
+	"path/filepath"
+)
 
 func IsExists(name string) (exists bool, err error) {
 	f, err := os.Open(name)
@@ -36,4 +40,8 @@ func IsDir(name string) (ok bool, err error) {
 func IsDir2(name string) (ok bool) {
 	ok, _ = IsDir(name)
 	return
+}
+
+func ToOSPath(p string) string {
+	return filepath.FromSlash(path.Clean(p))
 }
