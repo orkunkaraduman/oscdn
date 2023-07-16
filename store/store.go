@@ -272,6 +272,7 @@ func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}
 func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (download chan struct{}, err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	baseRawURL := baseURL.String()
 	keyRawURL := keyURL.String()
 
 	req := (&http.Request{
@@ -298,6 +299,8 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		Path: s.getDataPath(baseURL, keyURL),
 	}
 	data.Header = resp.Header.Clone()
+	data.Info.BaseURL = baseRawURL
+	data.Info.KeyURL = keyRawURL
 	data.Info.StatusCode = resp.StatusCode
 	data.Info.ContentLength = resp.ContentLength
 	data.Info.CreatedAt = now

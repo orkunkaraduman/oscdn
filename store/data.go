@@ -16,6 +16,8 @@ import (
 type Data struct {
 	Path string
 	Info struct {
+		BaseURL       string
+		KeyURL        string
 		StatusCode    int
 		ContentLength int64
 		CreatedAt     time.Time
