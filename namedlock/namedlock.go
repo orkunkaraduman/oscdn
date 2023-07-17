@@ -1,7 +1,9 @@
 package namedlock
 
 import (
+	"context"
 	"sync"
+	"time"
 )
 
 type NamedLock struct {
@@ -94,4 +96,18 @@ func (l *Locker) TryLock() bool {
 		h.decrease()
 	}
 	return ok
+}
+
+func (l *Locker) AcquireLock(ctx context.Context) (err error) {
+	for ctx.Err() == nil {
+		if l.TryLock() {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+	return ctx.Err()
 }
