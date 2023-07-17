@@ -214,21 +214,25 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 	if (baseURL.Scheme != "http" && baseURL.Scheme != "https") ||
 		baseURL.Opaque != "" ||
 		baseURL.User != nil ||
+		baseURL.Host == "" ||
 		baseURL.Fragment != "" {
 		err = errors.New("invalid raw url")
 		return
 	}
 
-	baseHost := baseURL.Host
-	switch baseURL.Scheme {
+	firstScheme := baseURL.Scheme
+	firstHost := baseURL.Host
+
+	baseHost := firstHost
+	if !HostRgx.MatchString(baseHost) {
+		err = errors.New("invalid base host")
+		return
+	}
+	switch firstScheme {
 	case "http":
 		baseHost = strings.TrimSuffix(baseHost, ":80")
 	case "https":
 		baseHost = strings.TrimSuffix(baseHost, ":443")
-	}
-	if !HostRgx.MatchString(baseHost) {
-		err = errors.New("invalid base host")
-		return
 	}
 	baseURL = &url.URL{
 		Scheme:   baseURL.Scheme,
@@ -237,19 +241,19 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 		RawQuery: baseURL.RawQuery,
 	}
 
-	keyHost := baseHost
+	keyHost := firstHost
 	if host != "" {
 		keyHost = host
-		switch baseURL.Scheme {
-		case "http":
-			keyHost = strings.TrimSuffix(keyHost, ":80")
-		case "https":
-			keyHost = strings.TrimSuffix(keyHost, ":443")
-		}
 	}
 	if !HostRgx.MatchString(keyHost) {
 		err = errors.New("invalid key host")
 		return
+	}
+	switch firstScheme {
+	case "http":
+		keyHost = strings.TrimSuffix(keyHost, ":80")
+	case "https":
+		keyHost = strings.TrimSuffix(keyHost, ":443")
 	}
 	keyURL = &url.URL{
 		Scheme:   baseURL.Scheme,
