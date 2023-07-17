@@ -378,8 +378,12 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
 
 	expires := httphdr.Expires(resp.Header, now)
-	if !expires.IsZero() && expires.Sub(data.Info.ExpiresAt) < 0 {
-		data.Info.ExpiresAt = expires
+	if expires.IsZero() {
+		data.Info.ExpiresAt = now.Add(s.config.DefAge)
+	} else {
+		if expires.Sub(data.Info.ExpiresAt) < 0 {
+			data.Info.ExpiresAt = expires
+		}
 	}
 
 	dynamic := (resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound
