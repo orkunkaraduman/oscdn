@@ -50,7 +50,7 @@ type holder struct {
 	owner *NamedLock
 	name  string
 	count int
-	mutex sync.Mutex
+	mutex sync.RWMutex
 }
 
 func (h *holder) decrease() {
@@ -74,18 +74,6 @@ func (l *Locker) Lock() {
 	h.mutex.Lock()
 }
 
-func (l *Locker) Unlock() {
-	// get holder
-	h := l.owner.holder(l.name)
-	if h == nil {
-		panic("namedlock: unlock of unlocked mutex")
-	}
-	// unlock
-	h.mutex.Unlock()
-	// decrease count, delete holder
-	h.decrease()
-}
-
 func (l *Locker) TryLock() bool {
 	// increase count, get holder
 	h := l.owner.increase(l.name)
@@ -96,6 +84,18 @@ func (l *Locker) TryLock() bool {
 		h.decrease()
 	}
 	return ok
+}
+
+func (l *Locker) Unlock() {
+	// get holder
+	h := l.owner.holder(l.name)
+	if h == nil {
+		panic("namedlock: unlock of unlocked mutex")
+	}
+	// unlock
+	h.mutex.Unlock()
+	// decrease count, delete holder
+	h.decrease()
 }
 
 func (l *Locker) AcquireLock(ctx context.Context) (err error) {
