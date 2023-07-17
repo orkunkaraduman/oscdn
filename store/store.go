@@ -386,7 +386,8 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		}
 	}
 
-	dynamic := (resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound
+	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
+		!data.Info.ExpiresAt.After(now)
 	if dynamic {
 		return nil, ErrDynamicContent
 	}
