@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -32,7 +33,7 @@ type Store struct {
 
 	config      Config
 	httpClient  *http.Client
-	namedLock   *namedlock.NamedLock
+	dataLock    *namedlock.NamedLock
 	downloads   map[string]chan struct{}
 	downloadsMu sync.RWMutex
 
@@ -60,7 +61,7 @@ func New(config Config) (s *Store, err error) {
 				ForceAttemptHTTP2:      true,
 			},
 		},
-		namedLock: namedlock.New(),
+		dataLock:  namedlock.New(),
 		downloads: make(map[string]chan struct{}, 4096),
 	}
 
@@ -123,7 +124,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	logger = logger.WithFieldKeyVals("dataPath", data.Path)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	locker := s.namedLock.Locker(data.Path)
+	locker := s.dataLock.Locker(data.Path)
 	locker.Lock()
 	defer locker.Unlock()
 
@@ -230,7 +231,49 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 	logger = logger.WithFieldKeyVals("dataPath", dataPath)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	locker := s.namedLock.Locker(dataPath)
+	return s.purge(ctx, dataPath)
+}
+
+func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	select {
+	case <-s.ctx.Done():
+		err = ErrReleased
+		return
+	default:
+	}
+
+	logger = logger.WithFieldKeyVals("host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	basePath := fmt.Sprintf("%s/content", s.config.Path)
+	err = fs.WalkDir(os.DirFS(basePath),
+		host, func(p string, d fs.DirEntry, e error) (err error) {
+			if !strings.HasSuffix(p, "/data") {
+				return nil
+			}
+
+			err = ctx.Err()
+			if err != nil {
+				return
+			}
+
+			dataPath := fmt.Sprintf("%s/host/%s", basePath, p)
+
+			logger := logger.WithFieldKeyVals("dataPath", dataPath)
+			ctx := context.WithValue(ctx, "logger", logger)
+
+			return s.purge(ctx, dataPath)
+		})
+
+	return nil
+}
+
+func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	locker := s.dataLock.Locker(dataPath)
 	locker.Lock()
 	defer locker.Unlock()
 
@@ -244,10 +287,12 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 		return ErrNotExists
 	}
 
-	purgedPath := fmt.Sprintf("%s/purged/%s", dataPath, uuid.NewString())
+	purgedPath := fmt.Sprintf("%s/purged/%s", s.config.Path, uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(purgedPath))
 	if err != nil {
-		return fmt.Errorf("unable to rename data path: %w", err)
+		err = fmt.Errorf("unable to rename data path: %w", err)
+		logger.Error(err)
+		return
 	}
 
 	return nil
@@ -314,11 +359,12 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 }
 
 func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
-	result := s.config.Path + "/" + baseURL.Host
+	result := fmt.Sprintf("%s/content/%s", s.config.Path, baseURL.Host)
 	h := sha256.Sum256([]byte((keyURL.String())))
 	for i, j := 0, len(h); i < j; i = i + 2 {
 		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
 	}
+	result += "/data"
 	return result
 }
 
@@ -444,7 +490,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		_ = data.Close()
 		close(download)
 
-		locker := s.namedLock.Locker(data.Path)
+		locker := s.dataLock.Locker(data.Path)
 		locker.Lock()
 		defer locker.Unlock()
 
