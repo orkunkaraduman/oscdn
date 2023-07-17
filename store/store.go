@@ -250,6 +250,15 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 		RawQuery: baseURL.RawQuery,
 	}
 
+	if !HostRgx.MatchString(baseHost) {
+		err = errors.New("invalid base host")
+		return
+	}
+	if !HostRgx.MatchString(keyHost) {
+		err = errors.New("invalid key host")
+		return
+	}
+
 	return
 }
 
