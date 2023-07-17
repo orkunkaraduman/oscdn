@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -33,6 +32,7 @@ type Store struct {
 
 	config      Config
 	httpClient  *http.Client
+	hostLock    *namedlock.NamedLock
 	dataLock    *namedlock.NamedLock
 	downloads   map[string]chan struct{}
 	downloadsMu sync.RWMutex
@@ -61,6 +61,7 @@ func New(config Config) (result *Store, err error) {
 				ForceAttemptHTTP2:      true,
 			},
 		},
+		hostLock:  namedlock.New(),
 		dataLock:  namedlock.New(),
 		downloads: make(map[string]chan struct{}, 4096),
 	}
@@ -199,9 +200,12 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	logger = logger.WithFieldKeyVals("dataPath", data.Path)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	locker := s.dataLock.Locker(data.Path)
-	locker.Lock()
-	defer locker.Unlock()
+	hostLocker := s.hostLock.Locker(baseURL.Host)
+	hostLocker.RLock()
+	defer hostLocker.RUnlock()
+	dataLocker := s.dataLock.Locker(data.Path)
+	dataLocker.Lock()
+	defer dataLocker.Unlock()
 
 	s.downloadsMu.RLock()
 	download := s.downloads[keyRawURL]
@@ -404,9 +408,12 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		_ = data.Close()
 		close(download)
 
-		locker := s.dataLock.Locker(data.Path)
-		locker.Lock()
-		defer locker.Unlock()
+		hostLocker := s.hostLock.Locker(baseURL.Host)
+		hostLocker.RLock()
+		defer hostLocker.RUnlock()
+		dataLocker := s.dataLock.Locker(data.Path)
+		dataLocker.Lock()
+		defer dataLocker.Unlock()
 
 		s.downloadsMu.Lock()
 		delete(s.downloads, keyRawURL)
@@ -445,7 +452,32 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 	logger = logger.WithFieldKeyVals("dataPath", dataPath)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	return s.purge(ctx, dataPath)
+	hostLocker := s.hostLock.Locker(baseURL.Host)
+	hostLocker.RLock()
+	defer hostLocker.RUnlock()
+	dataLocker := s.dataLock.Locker(dataPath)
+	dataLocker.Lock()
+	defer dataLocker.Unlock()
+
+	ok, err := fsutil.IsExists(dataPath)
+	if err != nil {
+		err = fmt.Errorf("unable to check data is exists: %w", err)
+		logger.Error(err)
+		return
+	}
+	if !ok {
+		return ErrNotExists
+	}
+
+	trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
+	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
+	if err != nil {
+		err = fmt.Errorf("unable to move data to trash: %w", err)
+		logger.Error(err)
+		return
+	}
+
+	return nil
 }
 
 func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
@@ -466,62 +498,18 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 		return
 	}
 
-	basePath := fmt.Sprintf("%s/content", s.config.Path)
-	if e := fs.WalkDir(os.DirFS(basePath),
-		host, func(p string, d fs.DirEntry, e error) error {
-			if e != nil {
-				if os.IsNotExist(e) {
-					return nil
-				}
-				return e
-			}
+	hostPath := fmt.Sprintf("%s/content/%s", s.config.Path, host)
 
-			if !d.IsDir() || !strings.HasSuffix(p, "/data") {
-				return nil
-			}
+	logger = logger.WithFieldKeyVals("hostPath", hostPath)
+	ctx = context.WithValue(ctx, "logger", logger)
 
-			err = ctx.Err()
-			if err != nil {
-				return fs.SkipAll
-			}
+	hostLocker := s.hostLock.Locker(host)
+	hostLocker.Lock()
+	defer hostLocker.Unlock()
 
-			dataPath := fmt.Sprintf("%s/%s", basePath, p)
-
-			logger := logger.WithFieldKeyVals("dataPath", dataPath)
-			ctx := context.WithValue(ctx, "logger", logger)
-
-			err = s.purge(ctx, dataPath)
-			if err != nil {
-				if err == ErrNotExists {
-					logger.Error("data is not exists")
-					return nil
-				}
-				return fs.SkipAll
-			}
-
-			return nil
-		}); e != nil {
-		err = fmt.Errorf("unable to walk content directories: %w", e)
-		logger.Error(err)
-		return err
-	}
+	ok, err := fsutil.IsExists(hostPath)
 	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
-	logger, _ := ctx.Value("logger").(*logng.Logger)
-
-	locker := s.dataLock.Locker(dataPath)
-	locker.Lock()
-	defer locker.Unlock()
-
-	ok, err := fsutil.IsExists(dataPath)
-	if err != nil {
-		err = fmt.Errorf("unable to check data is exists: %w", err)
+		err = fmt.Errorf("unable to check host is exists: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -530,9 +518,9 @@ func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
 	}
 
 	trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
-	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
+	err = os.Rename(fsutil.ToOSPath(hostPath), fsutil.ToOSPath(trashPath))
 	if err != nil {
-		err = fmt.Errorf("unable to move data to trash: %w", err)
+		err = fmt.Errorf("unable to move host to trash: %w", err)
 		logger.Error(err)
 		return
 	}
