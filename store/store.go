@@ -276,6 +276,9 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 
 			return s.purge(ctx, dataPath)
 		})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
