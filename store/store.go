@@ -235,7 +235,7 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 		baseHost = strings.TrimSuffix(baseHost, ":443")
 	}
 	baseURL = &url.URL{
-		Scheme:   baseURL.Scheme,
+		Scheme:   firstScheme,
 		Host:     baseHost,
 		Path:     baseURL.Path,
 		RawQuery: baseURL.RawQuery,
@@ -256,7 +256,7 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 		keyHost = strings.TrimSuffix(keyHost, ":443")
 	}
 	keyURL = &url.URL{
-		Scheme:   baseURL.Scheme,
+		Scheme:   firstScheme,
 		Host:     keyHost,
 		Path:     baseURL.Path,
 		RawQuery: baseURL.RawQuery,
