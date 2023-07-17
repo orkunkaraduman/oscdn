@@ -276,6 +276,10 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 
 			err = s.purge(ctx, dataPath)
 			if err != nil {
+				if err == ErrNotExists {
+					logger.Error("data path not exists")
+					return nil
+				}
 				return fs.SkipAll
 			}
 
