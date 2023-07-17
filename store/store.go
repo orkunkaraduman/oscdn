@@ -469,7 +469,14 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	basePath := fmt.Sprintf("%s/content", s.config.Path)
 	if e := fs.WalkDir(os.DirFS(basePath),
 		host, func(p string, d fs.DirEntry, e error) error {
-			if os.IsNotExist(e) || !d.IsDir() || !strings.HasSuffix(p, "/data") {
+			if e != nil {
+				if os.IsNotExist(e) {
+					return nil
+				}
+				return e
+			}
+
+			if !d.IsDir() || !strings.HasSuffix(p, "/data") {
 				return nil
 			}
 
