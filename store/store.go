@@ -338,29 +338,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.CreatedAt = now
 	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
 
-	hasCacheControl := false
-	if h := resp.Header.Get("Cache-Control"); h != "" {
-		hasCacheControl = true
-		cc := httphdr.ParseCacheControl(h)
-		maxAge := cc.MaxAge()
-		if maxAge < 0 {
-			maxAge = cc.SMaxAge()
-		}
-		switch {
-		case cc.NoCache():
-			data.Info.ExpiresAt = now
-		case maxAge >= 0:
-			expiresAt := now.Add(maxAge)
-			if expiresAt.Sub(data.Info.ExpiresAt) < 0 {
-				data.Info.ExpiresAt = expiresAt
-			}
-		}
-	}
-	if h := resp.Header.Get("Expires"); h != "" && !hasCacheControl {
-		expiresAt, _ := time.Parse(time.RFC1123, h)
-		if expiresAt.Sub(data.Info.ExpiresAt) < 0 {
-			data.Info.ExpiresAt = expiresAt
-		}
+	expires := httphdr.Expires(resp.Header, now)
+	if expires.Sub(data.Info.ExpiresAt) < 0 {
+		data.Info.ExpiresAt = expires
 	}
 
 	dynamic := (resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound
