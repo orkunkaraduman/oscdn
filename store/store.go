@@ -17,6 +17,7 @@ import (
 	"github.com/goinsane/filelock"
 	"github.com/goinsane/logng"
 	"github.com/goinsane/xcontext"
+	"github.com/google/uuid"
 
 	"github.com/orkunkaraduman/oscdn/fsutil"
 	"github.com/orkunkaraduman/oscdn/httphdr"
@@ -103,10 +104,10 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	default:
 	}
 
-	result.ReadCloser = io.NopCloser(&ioutil.NopReader{Err: io.EOF})
-
 	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
+
+	result.ReadCloser = io.NopCloser(&ioutil.NopReader{Err: io.EOF})
 
 	baseURL, keyURL, err := s.getURLs(rawURL, host)
 	if err != nil {
@@ -126,11 +127,11 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	locker.Lock()
 	defer locker.Unlock()
 
-	now := time.Now()
-
 	s.downloadsMu.RLock()
 	download := s.downloads[keyRawURL]
 	s.downloadsMu.RUnlock()
+
+	now := time.Now()
 
 	if download != nil {
 		err = data.Open()
@@ -203,6 +204,44 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 		StatusCode: data.Info.StatusCode,
 		Header:     data.Header.Clone(),
 	}, nil
+}
+
+func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	select {
+	case <-s.ctx.Done():
+		err = ErrReleased
+		return
+	default:
+	}
+
+	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	baseURL, keyURL, err := s.getURLs(rawURL, host)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	keyRawURL := keyURL.String()
+
+	dataPath := s.getDataPath(baseURL, keyURL)
+
+	logger = logger.WithFieldKeyVals("dataPath", dataPath)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	locker := s.namedLock.Locker(keyRawURL)
+	locker.Lock()
+	defer locker.Unlock()
+
+	purgedPath := fmt.Sprintf("%s/purged/%s", dataPath, uuid.NewString())
+	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(purgedPath))
+	if err != nil {
+		return fmt.Errorf("unable to rename data path: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, err error) {
