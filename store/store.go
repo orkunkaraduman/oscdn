@@ -260,7 +260,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	basePath := fmt.Sprintf("%s/content", s.config.Path)
 	if e := fs.WalkDir(os.DirFS(basePath),
 		host, func(p string, d fs.DirEntry, e error) error {
-			if !strings.HasSuffix(p, "/data") {
+			if os.IsNotExist(e) || !strings.HasSuffix(p, "/data") {
 				return nil
 			}
 
@@ -269,7 +269,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 				return fs.SkipAll
 			}
 
-			dataPath := fmt.Sprintf("%s/%s/%s", basePath, host, p)
+			dataPath := fmt.Sprintf("%s/%s", basePath, p)
 
 			logger := logger.WithFieldKeyVals("dataPath", dataPath)
 			ctx := context.WithValue(ctx, "logger", logger)
