@@ -235,6 +235,16 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 	locker.Lock()
 	defer locker.Unlock()
 
+	ok, err := fsutil.IsExists(dataPath)
+	if err != nil {
+		err = fmt.Errorf("unable to check data path is exists: %w", err)
+		logger.Error(err)
+		return
+	}
+	if !ok {
+		return ErrNotExists
+	}
+
 	purgedPath := fmt.Sprintf("%s/purged/%s", dataPath, uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(purgedPath))
 	if err != nil {
