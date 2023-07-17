@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"net/http"
 	"time"
-
-	"gitlab.com/orkunkaraduman/narvi/httphdr"
 )
 
 func PutHTTPHeaders(dst http.Header, src http.Header, keys ...string) {
@@ -31,7 +29,7 @@ func Expires(header http.Header, now time.Time) (expires time.Time) {
 	hasCacheControl := false
 	if h := header.Get("Cache-Control"); h != "" {
 		hasCacheControl = true
-		cc := httphdr.ParseCacheControl(h)
+		cc := ParseCacheControl(h)
 		maxAge := cc.MaxAge()
 		if maxAge < 0 {
 			maxAge = cc.SMaxAge()
