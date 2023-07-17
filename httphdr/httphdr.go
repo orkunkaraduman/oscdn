@@ -27,9 +27,7 @@ func SizeOfHTTPHeader(header http.Header) int {
 	return buf.Len()
 }
 
-func Expires(header http.Header) (expires time.Time) {
-	now := time.Now()
-
+func Expires(header http.Header, now time.Time) (expires time.Time) {
 	hasCacheControl := false
 	if h := header.Get("Cache-Control"); h != "" {
 		hasCacheControl = true
