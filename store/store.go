@@ -65,6 +65,9 @@ func New(config Config) (s *Store, err error) {
 	if s.config.Path == "" {
 		s.config.Path = "."
 	}
+	if s.config.UserAgent == "" {
+		s.config.UserAgent = "oscdn"
+	}
 	s.lockFile, err = filelock.Create(fsutil.ToOSPath(s.config.Path+"/lock"), 0666)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get store lock: %w", err)
@@ -305,12 +308,11 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	req := (&http.Request{
 		Method: http.MethodGet,
 		URL:    baseURL,
-		Header: http.Header{},
-		Host:   keyURL.Host,
+		Header: http.Header{
+			"User-Agent": []string{s.config.UserAgent},
+		},
+		Host: keyURL.Host,
 	}).WithContext(s.ctx)
-	if s.config.UserAgent != "" {
-		req.Header.Set("User-Agent", s.config.UserAgent)
-	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -382,8 +384,6 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	go func() {
 		defer s.wg.Done()
 
-		logger := s.config.Logger
-
 		_, copyErr := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
@@ -398,7 +398,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		s.downloadsMu.Unlock()
 
 		if copyErr != nil {
-			logger.Debug(err)
+			logger.V(2).Warning(err)
 			_ = os.RemoveAll(fsutil.ToOSPath(data.Path))
 		}
 	}()
