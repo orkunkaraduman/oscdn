@@ -258,15 +258,15 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	}
 
 	basePath := fmt.Sprintf("%s/content", s.config.Path)
-	err = fs.WalkDir(os.DirFS(basePath),
-		host, func(p string, d fs.DirEntry, e error) (err error) {
+	if e := fs.WalkDir(os.DirFS(basePath),
+		host, func(p string, d fs.DirEntry, e error) error {
 			if !strings.HasSuffix(p, "/data") {
 				return nil
 			}
 
 			err = ctx.Err()
 			if err != nil {
-				return
+				return fs.SkipAll
 			}
 
 			dataPath := fmt.Sprintf("%s/%s/%s", basePath, host, p)
@@ -274,8 +274,17 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 			logger := logger.WithFieldKeyVals("dataPath", dataPath)
 			ctx := context.WithValue(ctx, "logger", logger)
 
-			return s.purge(ctx, dataPath)
-		})
+			err = s.purge(ctx, dataPath)
+			if err != nil {
+				return fs.SkipAll
+			}
+
+			return nil
+		}); e != nil {
+		err = fmt.Errorf("unable to walk content directories: %w", e)
+		logger.Error(err)
+		return err
+	}
 	if err != nil {
 		return err
 	}
