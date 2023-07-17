@@ -226,6 +226,10 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 	case "https":
 		baseHost = strings.TrimSuffix(baseHost, ":443")
 	}
+	if !HostRgx.MatchString(baseHost) {
+		err = errors.New("invalid base host")
+		return
+	}
 	baseURL = &url.URL{
 		Scheme:   baseURL.Scheme,
 		Host:     baseHost,
@@ -243,20 +247,15 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 			keyHost = strings.TrimSuffix(keyHost, ":443")
 		}
 	}
+	if !HostRgx.MatchString(keyHost) {
+		err = errors.New("invalid key host")
+		return
+	}
 	keyURL = &url.URL{
 		Scheme:   baseURL.Scheme,
 		Host:     keyHost,
 		Path:     baseURL.Path,
 		RawQuery: baseURL.RawQuery,
-	}
-
-	if !HostRgx.MatchString(baseHost) {
-		err = errors.New("invalid base host")
-		return
-	}
-	if !HostRgx.MatchString(keyHost) {
-		err = errors.New("invalid key host")
-		return
 	}
 
 	return
