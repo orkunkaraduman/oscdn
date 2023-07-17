@@ -98,9 +98,54 @@ func (l *Locker) Unlock() {
 	h.decrease()
 }
 
+func (l *Locker) RLock() {
+	// increase count, get holder
+	h := l.owner.increase(l.name)
+	// rlock
+	h.mutex.RLock()
+}
+
+func (l *Locker) TryRLock() bool {
+	// increase count, get holder
+	h := l.owner.increase(l.name)
+	// try  rlock
+	ok := h.mutex.TryRLock()
+	if !ok {
+		// decrease count, delete holder if needed
+		h.decrease()
+	}
+	return ok
+}
+
+func (l *Locker) RUnlock() {
+	// get holder
+	h := l.owner.holder(l.name)
+	if h == nil {
+		panic("namedlock: runlock of unlocked mutex")
+	}
+	// runlock
+	h.mutex.RUnlock()
+	// decrease count, delete holder
+	h.decrease()
+}
+
 func (l *Locker) AcquireLock(ctx context.Context) (err error) {
 	for ctx.Err() == nil {
 		if l.TryLock() {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+	return ctx.Err()
+}
+
+func (l *Locker) AcquireRLock(ctx context.Context) (err error) {
+	for ctx.Err() == nil {
+		if l.TryRLock() {
 			return nil
 		}
 		select {
