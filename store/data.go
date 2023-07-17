@@ -40,7 +40,7 @@ func (d *Data) Create() (err error) {
 
 	err = os.MkdirAll(fsutil.ToOSPath(d.Path), 0777)
 	if err != nil {
-		return fmt.Errorf("unable to create directories: %w", err)
+		return fmt.Errorf("unable to create data directory: %w", err)
 	}
 	defer func() {
 		if err != nil {

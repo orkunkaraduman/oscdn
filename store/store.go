@@ -40,8 +40,8 @@ type Store struct {
 	lockFile *filelock.File
 }
 
-func New(config Config) (s *Store, err error) {
-	s = &Store{
+func New(config Config) (result *Store, err error) {
+	s := &Store{
 		ctx:    xcontext.WithCancelable2(context.Background()),
 		config: config,
 		httpClient: &http.Client{
@@ -80,6 +80,11 @@ func New(config Config) (s *Store, err error) {
 			_ = s.lockFile.Release()
 		}
 	}()
+
+	err = os.Mkdir(fsutil.ToOSPath(fmt.Sprintf("%s/purged", s.config.Path)), 0777)
+	if err != nil && !os.IsExist(err) {
+		return nil, fmt.Errorf("unable to create purged directory: %w", err)
+	}
 
 	return s, nil
 }
