@@ -81,9 +81,9 @@ func New(config Config) (result *Store, err error) {
 		}
 	}()
 
-	err = os.Mkdir(fsutil.ToOSPath(fmt.Sprintf("%s/purged", s.config.Path)), 0777)
+	err = os.Mkdir(fsutil.ToOSPath(fmt.Sprintf("%s/trash", s.config.Path)), 0777)
 	if err != nil && !os.IsExist(err) {
-		return nil, fmt.Errorf("unable to create purged directory: %w", err)
+		return nil, fmt.Errorf("unable to create trash directory: %w", err)
 	}
 
 	return s, nil
@@ -529,10 +529,10 @@ func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
 		return ErrNotExists
 	}
 
-	purgedPath := fmt.Sprintf("%s/purged/%s", s.config.Path, uuid.NewString())
-	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(purgedPath))
+	trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
+	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
 	if err != nil {
-		err = fmt.Errorf("unable to rename data path: %w", err)
+		err = fmt.Errorf("unable to move data path to trash: %w", err)
 		logger.Error(err)
 		return
 	}
