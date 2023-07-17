@@ -123,7 +123,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	logger = logger.WithFieldKeyVals("dataPath", data.Path)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	locker := s.namedLock.Locker(keyRawURL)
+	locker := s.namedLock.Locker(data.Path)
 	locker.Lock()
 	defer locker.Unlock()
 
@@ -224,14 +224,13 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 		logger.Error(err)
 		return
 	}
-	keyRawURL := keyURL.String()
 
 	dataPath := s.getDataPath(baseURL, keyURL)
 
 	logger = logger.WithFieldKeyVals("dataPath", dataPath)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	locker := s.namedLock.Locker(keyRawURL)
+	locker := s.namedLock.Locker(dataPath)
 	locker.Lock()
 	defer locker.Unlock()
 
@@ -445,7 +444,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		_ = data.Close()
 		close(download)
 
-		locker := s.namedLock.Locker(keyRawURL)
+		locker := s.namedLock.Locker(data.Path)
 		locker.Lock()
 		defer locker.Unlock()
 
