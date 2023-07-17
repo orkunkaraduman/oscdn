@@ -32,6 +32,7 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	//fmt.Println(s.Purge(context.Background(), "https://speed.hetzner.de/100MB.bin", ""))
+	//fmt.Println(s.PurgeHost(context.Background(), "speed.hetzner.de"))
 	//return
 
 	var wg sync.WaitGroup
