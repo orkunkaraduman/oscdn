@@ -100,6 +100,76 @@ func (s *Store) Release() (err error) {
 	return
 }
 
+func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, err error) {
+	baseURL, err = url.Parse(rawURL)
+	if err != nil {
+		err = fmt.Errorf("unable to parse raw url: %w", err)
+		return
+	}
+	if (baseURL.Scheme != "http" && baseURL.Scheme != "https") ||
+		baseURL.Opaque != "" ||
+		baseURL.User != nil ||
+		baseURL.Host == "" ||
+		baseURL.Fragment != "" {
+		err = errors.New("invalid raw url")
+		return
+	}
+
+	firstScheme := baseURL.Scheme
+	firstHost := baseURL.Host
+
+	baseHost := firstHost
+	if !HostRgx.MatchString(baseHost) {
+		err = errors.New("invalid base host")
+		return
+	}
+	switch firstScheme {
+	case "http":
+		baseHost = strings.TrimSuffix(baseHost, ":80")
+	case "https":
+		baseHost = strings.TrimSuffix(baseHost, ":443")
+	}
+	baseURL = &url.URL{
+		Scheme:   firstScheme,
+		Host:     baseHost,
+		Path:     baseURL.Path,
+		RawQuery: baseURL.RawQuery,
+	}
+
+	keyHost := firstHost
+	if host != "" {
+		keyHost = host
+	}
+	if !HostRgx.MatchString(keyHost) {
+		err = errors.New("invalid key host")
+		return
+	}
+	switch firstScheme {
+	case "http":
+		keyHost = strings.TrimSuffix(keyHost, ":80")
+	case "https":
+		keyHost = strings.TrimSuffix(keyHost, ":443")
+	}
+	keyURL = &url.URL{
+		Scheme:   firstScheme,
+		Host:     keyHost,
+		Path:     baseURL.Path,
+		RawQuery: baseURL.RawQuery,
+	}
+
+	return
+}
+
+func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
+	result := fmt.Sprintf("%s/content/%s", s.config.Path, baseURL.Host)
+	h := sha256.Sum256([]byte((keyURL.String())))
+	for i, j := 0, len(h); i < j; i = i + 2 {
+		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
+	}
+	result += "/data"
+	return result
+}
+
 func (s *Store) Get(ctx context.Context, rawURL string, host string) (result GetResult, err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
@@ -210,188 +280,6 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 		StatusCode: data.Info.StatusCode,
 		Header:     data.Header.Clone(),
 	}, nil
-}
-
-func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err error) {
-	logger, _ := ctx.Value("logger").(*logng.Logger)
-
-	select {
-	case <-s.ctx.Done():
-		err = ErrReleased
-		return
-	default:
-	}
-
-	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
-
-	baseURL, keyURL, err := s.getURLs(rawURL, host)
-	if err != nil {
-		logger.Error(err)
-		return
-	}
-
-	dataPath := s.getDataPath(baseURL, keyURL)
-
-	logger = logger.WithFieldKeyVals("dataPath", dataPath)
-	ctx = context.WithValue(ctx, "logger", logger)
-
-	return s.purge(ctx, dataPath)
-}
-
-func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
-	logger, _ := ctx.Value("logger").(*logng.Logger)
-
-	select {
-	case <-s.ctx.Done():
-		err = ErrReleased
-		return
-	default:
-	}
-
-	logger = logger.WithFieldKeyVals("host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
-
-	if !HostRgx.MatchString(host) {
-		err = errors.New("invalid host")
-		return
-	}
-
-	basePath := fmt.Sprintf("%s/content", s.config.Path)
-	if e := fs.WalkDir(os.DirFS(basePath),
-		host, func(p string, d fs.DirEntry, e error) error {
-			if os.IsNotExist(e) || !d.IsDir() || !strings.HasSuffix(p, "/data") {
-				return nil
-			}
-
-			err = ctx.Err()
-			if err != nil {
-				return fs.SkipAll
-			}
-
-			dataPath := fmt.Sprintf("%s/%s", basePath, p)
-
-			logger := logger.WithFieldKeyVals("dataPath", dataPath)
-			ctx := context.WithValue(ctx, "logger", logger)
-
-			err = s.purge(ctx, dataPath)
-			if err != nil {
-				if err == ErrNotExists {
-					logger.Error("data path not exists")
-					return nil
-				}
-				return fs.SkipAll
-			}
-
-			return nil
-		}); e != nil {
-		err = fmt.Errorf("unable to walk content directories: %w", e)
-		logger.Error(err)
-		return err
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
-	logger, _ := ctx.Value("logger").(*logng.Logger)
-
-	locker := s.dataLock.Locker(dataPath)
-	locker.Lock()
-	defer locker.Unlock()
-
-	ok, err := fsutil.IsExists(dataPath)
-	if err != nil {
-		err = fmt.Errorf("unable to check data path is exists: %w", err)
-		logger.Error(err)
-		return
-	}
-	if !ok {
-		return ErrNotExists
-	}
-
-	purgedPath := fmt.Sprintf("%s/purged/%s", s.config.Path, uuid.NewString())
-	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(purgedPath))
-	if err != nil {
-		err = fmt.Errorf("unable to rename data path: %w", err)
-		logger.Error(err)
-		return
-	}
-
-	return nil
-}
-
-func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, err error) {
-	baseURL, err = url.Parse(rawURL)
-	if err != nil {
-		err = fmt.Errorf("unable to parse raw url: %w", err)
-		return
-	}
-	if (baseURL.Scheme != "http" && baseURL.Scheme != "https") ||
-		baseURL.Opaque != "" ||
-		baseURL.User != nil ||
-		baseURL.Host == "" ||
-		baseURL.Fragment != "" {
-		err = errors.New("invalid raw url")
-		return
-	}
-
-	firstScheme := baseURL.Scheme
-	firstHost := baseURL.Host
-
-	baseHost := firstHost
-	if !HostRgx.MatchString(baseHost) {
-		err = errors.New("invalid base host")
-		return
-	}
-	switch firstScheme {
-	case "http":
-		baseHost = strings.TrimSuffix(baseHost, ":80")
-	case "https":
-		baseHost = strings.TrimSuffix(baseHost, ":443")
-	}
-	baseURL = &url.URL{
-		Scheme:   firstScheme,
-		Host:     baseHost,
-		Path:     baseURL.Path,
-		RawQuery: baseURL.RawQuery,
-	}
-
-	keyHost := firstHost
-	if host != "" {
-		keyHost = host
-	}
-	if !HostRgx.MatchString(keyHost) {
-		err = errors.New("invalid key host")
-		return
-	}
-	switch firstScheme {
-	case "http":
-		keyHost = strings.TrimSuffix(keyHost, ":80")
-	case "https":
-		keyHost = strings.TrimSuffix(keyHost, ":443")
-	}
-	keyURL = &url.URL{
-		Scheme:   firstScheme,
-		Host:     keyHost,
-		Path:     baseURL.Path,
-		RawQuery: baseURL.RawQuery,
-	}
-
-	return
-}
-
-func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
-	result := fmt.Sprintf("%s/content/%s", s.config.Path, baseURL.Host)
-	h := sha256.Sum256([]byte((keyURL.String())))
-	for i, j := 0, len(h); i < j; i = i + 2 {
-		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
-	}
-	result += "/data"
-	return result
 }
 
 func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.ReadCloser {
@@ -531,4 +419,116 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	}()
 
 	return download, nil
+}
+
+func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	select {
+	case <-s.ctx.Done():
+		err = ErrReleased
+		return
+	default:
+	}
+
+	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	baseURL, keyURL, err := s.getURLs(rawURL, host)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+
+	dataPath := s.getDataPath(baseURL, keyURL)
+
+	logger = logger.WithFieldKeyVals("dataPath", dataPath)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	return s.purge(ctx, dataPath)
+}
+
+func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	select {
+	case <-s.ctx.Done():
+		err = ErrReleased
+		return
+	default:
+	}
+
+	logger = logger.WithFieldKeyVals("host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	if !HostRgx.MatchString(host) {
+		err = errors.New("invalid host")
+		return
+	}
+
+	basePath := fmt.Sprintf("%s/content", s.config.Path)
+	if e := fs.WalkDir(os.DirFS(basePath),
+		host, func(p string, d fs.DirEntry, e error) error {
+			if os.IsNotExist(e) || !d.IsDir() || !strings.HasSuffix(p, "/data") {
+				return nil
+			}
+
+			err = ctx.Err()
+			if err != nil {
+				return fs.SkipAll
+			}
+
+			dataPath := fmt.Sprintf("%s/%s", basePath, p)
+
+			logger := logger.WithFieldKeyVals("dataPath", dataPath)
+			ctx := context.WithValue(ctx, "logger", logger)
+
+			err = s.purge(ctx, dataPath)
+			if err != nil {
+				if err == ErrNotExists {
+					logger.Error("data path not exists")
+					return nil
+				}
+				return fs.SkipAll
+			}
+
+			return nil
+		}); e != nil {
+		err = fmt.Errorf("unable to walk content directories: %w", e)
+		logger.Error(err)
+		return err
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	locker := s.dataLock.Locker(dataPath)
+	locker.Lock()
+	defer locker.Unlock()
+
+	ok, err := fsutil.IsExists(dataPath)
+	if err != nil {
+		err = fmt.Errorf("unable to check data path is exists: %w", err)
+		logger.Error(err)
+		return
+	}
+	if !ok {
+		return ErrNotExists
+	}
+
+	purgedPath := fmt.Sprintf("%s/purged/%s", s.config.Path, uuid.NewString())
+	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(purgedPath))
+	if err != nil {
+		err = fmt.Errorf("unable to rename data path: %w", err)
+		logger.Error(err)
+		return
+	}
+
+	return nil
 }
