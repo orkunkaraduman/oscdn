@@ -6,8 +6,12 @@ import (
 	"path/filepath"
 )
 
+func ToOSPath(p string) string {
+	return filepath.FromSlash(path.Clean(p))
+}
+
 func IsExists(name string) (exists bool, err error) {
-	f, err := os.Open(name)
+	f, err := os.Open(ToOSPath(name))
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = nil
@@ -24,7 +28,7 @@ func IsExists2(name string) (exists bool) {
 }
 
 func IsDir(name string) (ok bool, err error) {
-	f, err := os.Open(name)
+	f, err := os.Open(ToOSPath(name))
 	if err != nil {
 		return false, err
 	}
@@ -40,8 +44,4 @@ func IsDir(name string) (ok bool, err error) {
 func IsDir2(name string) (ok bool) {
 	ok, _ = IsDir(name)
 	return
-}
-
-func ToOSPath(p string) string {
-	return filepath.FromSlash(path.Clean(p))
 }
