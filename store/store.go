@@ -226,7 +226,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 
 	ok, err := fsutil.IsExists(data.Path)
 	if err != nil {
-		err = fmt.Errorf("unable to check data path is exists: %w", err)
+		err = fmt.Errorf("unable to check data is exists: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -234,12 +234,12 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	if ok {
 		ok, err = fsutil.IsDir(data.Path)
 		if err != nil {
-			err = fmt.Errorf("unable to check data path is directory: %w", err)
+			err = fmt.Errorf("unable to check data is directory: %w", err)
 			logger.Error(err)
 			return
 		}
 		if !ok {
-			err = errors.New("data path is not directory")
+			err = errors.New("data is not directory")
 			logger.Error(err)
 			return
 		}
@@ -493,7 +493,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 			err = s.purge(ctx, dataPath)
 			if err != nil {
 				if err == ErrNotExists {
-					logger.Error("data path not exists")
+					logger.Error("data is not exists")
 					return nil
 				}
 				return fs.SkipAll
@@ -521,7 +521,7 @@ func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
 
 	ok, err := fsutil.IsExists(dataPath)
 	if err != nil {
-		err = fmt.Errorf("unable to check data path is exists: %w", err)
+		err = fmt.Errorf("unable to check data is exists: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -532,7 +532,7 @@ func (s *Store) purge(ctx context.Context, dataPath string) (err error) {
 	trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
 	if err != nil {
-		err = fmt.Errorf("unable to move data path to trash: %w", err)
+		err = fmt.Errorf("unable to move data to trash: %w", err)
 		logger.Error(err)
 		return
 	}
