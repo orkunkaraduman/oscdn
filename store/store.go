@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -217,16 +218,30 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 		err = errors.New("invalid raw url")
 		return
 	}
+
+	baseHost := baseURL.Host
+	switch baseURL.Scheme {
+	case "http":
+		baseHost = strings.TrimSuffix(baseHost, ":80")
+	case "https":
+		baseHost = strings.TrimSuffix(baseHost, ":443")
+	}
 	baseURL = &url.URL{
 		Scheme:   baseURL.Scheme,
-		Host:     baseURL.Host,
+		Host:     baseHost,
 		Path:     baseURL.Path,
 		RawQuery: baseURL.RawQuery,
 	}
 
-	keyHost := baseURL.Host
+	keyHost := baseHost
 	if host != "" {
 		keyHost = host
+		switch baseURL.Scheme {
+		case "http":
+			keyHost = strings.TrimSuffix(keyHost, ":80")
+		case "https":
+			keyHost = strings.TrimSuffix(keyHost, ":443")
+		}
 	}
 	keyURL = &url.URL{
 		Scheme:   baseURL.Scheme,
