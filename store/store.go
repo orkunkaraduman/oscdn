@@ -247,6 +247,11 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	logger = logger.WithFieldKeyVals("host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
 
+	if !HostRgx.MatchString(host) {
+		err = errors.New("invalid host")
+		return
+	}
+
 	basePath := fmt.Sprintf("%s/content", s.config.Path)
 	err = fs.WalkDir(os.DirFS(basePath),
 		host, func(p string, d fs.DirEntry, e error) (err error) {
@@ -259,7 +264,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 				return
 			}
 
-			dataPath := fmt.Sprintf("%s/host/%s", basePath, p)
+			dataPath := fmt.Sprintf("%s/%s/%s", basePath, host, p)
 
 			logger := logger.WithFieldKeyVals("dataPath", dataPath)
 			ctx := context.WithValue(ctx, "logger", logger)
