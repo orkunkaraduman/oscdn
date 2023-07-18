@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -42,7 +44,7 @@ type Store struct {
 
 func New(config Config) (result *Store, err error) {
 	s := &Store{
-		ctx:    xcontext.WithCancelable2(context.Background()),
+		ctx:    xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", config.Logger)),
 		config: config,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
@@ -86,6 +88,9 @@ func New(config Config) (result *Store, err error) {
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("unable to create trash directory: %w", err)
 	}
+
+	s.wg.Add(1)
+	go s.contentCleaner()
 
 	return s, nil
 }
@@ -537,4 +542,80 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	}
 
 	return nil
+}
+
+func (s *Store) contentCleaner() {
+	defer s.wg.Done()
+
+	var err error
+	ctx := s.ctx
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	for ctx.Err() == nil {
+		if e := walkDir(path.Join(s.config.Path, "content"), func(contentPath string, dirEntry fs.DirEntry) bool {
+			if !dirEntry.IsDir() {
+				return true
+			}
+
+			logger := logger.WithFieldKeyVals("contentPath", contentPath)
+			ctx := context.WithValue(ctx, "logger", logger)
+
+			err = ctx.Err()
+			if err != nil {
+				return false
+			}
+
+			if !strings.HasSuffix(contentPath, "/data") {
+				err = os.Remove(contentPath)
+				if err != nil {
+					if isNotEmpty(err) {
+						err = nil
+						return true
+					}
+					err = fmt.Errorf("unable to remove empty content directory: %w", err)
+					logger.Error(err)
+					return false
+				}
+				return true
+			}
+
+			dataPath := contentPath
+
+			dataLocker := s.dataLock.Locker(dataPath)
+			dataLocker.Lock()
+			defer dataLocker.Unlock()
+
+			ok, err := fsutil.IsExists(dataPath)
+			if err != nil {
+				err = fmt.Errorf("unable to check data is exists: %w", err)
+				logger.Error(err)
+				return false
+			}
+			if !ok {
+				return true
+			}
+
+			trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
+			err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
+			if err != nil {
+				err = fmt.Errorf("unable to move data to trash: %w", err)
+				logger.Error(err)
+				return false
+			}
+
+			return true
+
+		}); e != nil {
+			err = fmt.Errorf("unable to walk content directories: %w", e)
+			logger.Error(err)
+		}
+		if err != nil {
+			err = nil
+		}
+
+		select {
+		case <-ctx.Done():
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
 }
