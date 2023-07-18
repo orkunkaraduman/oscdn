@@ -285,13 +285,13 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 				Header:     data.Header.Clone(),
 			}, nil
 		}
+		_ = data.Close()
 		err = os.RemoveAll(fsutil.ToOSPath(data.Path))
 		if err != nil {
 			err = fmt.Errorf("unable to remove expired data: %w", err)
 			logger.Error(err)
 			return
 		}
-		_ = data.Close()
 	}
 
 	download, err = s.startDownload(ctx, baseURL, keyURL)
@@ -425,17 +425,17 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		return nil, ErrDynamicContent
 	}
 
-	err = data.Create()
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
-
 	download = make(chan struct{})
 
 	s.downloadsMu.Lock()
 	s.downloads[keyRawURL] = download
 	s.downloadsMu.Unlock()
+
+	err = data.Create()
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
 
 	s.wg.Add(1)
 	go func() {
