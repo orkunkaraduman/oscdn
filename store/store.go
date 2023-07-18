@@ -237,29 +237,37 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 
 	now := time.Now()
 
-	if download != nil {
-		err = data.Open()
-		if err != nil {
-			logger.Error(err)
-			return
-		}
-		return GetResult{
-			ReadCloser: s.pipeData(ctx, data, download),
-			BaseURL:    baseURL,
-			KeyURL:     keyURL,
-			StatusCode: data.Info.StatusCode,
-			Header:     data.Header.Clone(),
-		}, nil
-	}
-
-	ok, err := fsutil.IsExists(data.Path)
+	exists, err := fsutil.IsExists(data.Path)
 	if err != nil {
 		err = fmt.Errorf("unable to check data is exists: %w", err)
 		logger.Error(err)
 		return
 	}
 
-	if ok {
+	if download != nil {
+		if !exists {
+			s.downloadsMu.Lock()
+			delete(s.downloads, keyRawURL)
+			s.downloadsMu.Unlock()
+			close(download)
+		} else {
+			err = data.Open()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			return GetResult{
+				ReadCloser: s.pipeData(ctx, data, download),
+				BaseURL:    baseURL,
+				KeyURL:     keyURL,
+				StatusCode: data.Info.StatusCode,
+				Header:     data.Header.Clone(),
+			}, nil
+		}
+	}
+
+	if exists {
+		var ok bool
 		ok, err = fsutil.IsDir(data.Path)
 		if err != nil {
 			err = fmt.Errorf("unable to check data is directory: %w", err)
@@ -444,7 +452,6 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		_, err := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
-		close(download)
 
 		hostLocker := s.hostLock.Locker(baseURL.Host)
 		hostLocker.RLock()
@@ -453,9 +460,14 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		dataLocker.Lock()
 		defer dataLocker.Unlock()
 
-		s.downloadsMu.Lock()
-		delete(s.downloads, keyRawURL)
-		s.downloadsMu.Unlock()
+		select {
+		case <-download:
+		default:
+			s.downloadsMu.Lock()
+			delete(s.downloads, keyRawURL)
+			s.downloadsMu.Unlock()
+			close(download)
+		}
 
 		if err != nil {
 			logger.V(2).Warning(err)
