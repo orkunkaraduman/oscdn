@@ -694,6 +694,8 @@ func (s *Store) trashCleaner() {
 				return false
 			}
 
+			logger := logger.WithFieldKeyVals("subTrashPath", subTrashPath)
+
 			err = os.RemoveAll(fsutil.ToOSPath(subTrashPath))
 			if err != nil {
 				err = fmt.Errorf("unable to remove sub trash directory: %w", err)
