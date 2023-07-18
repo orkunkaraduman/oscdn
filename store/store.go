@@ -249,7 +249,6 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 			s.downloadsMu.Lock()
 			delete(s.downloads, keyRawURL)
 			s.downloadsMu.Unlock()
-			close(download)
 		} else {
 			err = data.Open()
 			if err != nil {
@@ -452,6 +451,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		_, err := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
+		close(download)
 
 		hostLocker := s.hostLock.Locker(baseURL.Host)
 		hostLocker.RLock()
@@ -460,21 +460,24 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		dataLocker.Lock()
 		defer dataLocker.Unlock()
 
-		select {
-		case <-download:
-		default:
+		s.downloadsMu.RLock()
+		downloadNew := s.downloads[keyRawURL]
+		s.downloadsMu.RUnlock()
+
+		if download == downloadNew {
 			s.downloadsMu.Lock()
 			delete(s.downloads, keyRawURL)
 			s.downloadsMu.Unlock()
-			close(download)
 		}
 
 		if err != nil {
 			logger.V(2).Warning(err)
-			err = os.RemoveAll(fsutil.ToOSPath(data.Path))
-			if err != nil {
-				err = fmt.Errorf("unable to remove data: %w", err)
-				logger.Error(err)
+			if download == downloadNew {
+				err = os.RemoveAll(fsutil.ToOSPath(data.Path))
+				if err != nil {
+					err = fmt.Errorf("unable to remove data: %w", err)
+					logger.Error(err)
+				}
 			}
 		}
 	}()
