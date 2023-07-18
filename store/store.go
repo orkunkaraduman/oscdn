@@ -433,7 +433,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	go func() {
 		defer s.wg.Done()
 
-		_, copyErr := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
+		_, err := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
 		close(download)
@@ -449,9 +449,13 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		delete(s.downloads, keyRawURL)
 		s.downloadsMu.Unlock()
 
-		if copyErr != nil {
+		if err != nil {
 			logger.V(2).Warning(err)
-			_ = os.RemoveAll(fsutil.ToOSPath(data.Path))
+			err = os.RemoveAll(fsutil.ToOSPath(data.Path))
+			if err != nil {
+				err = fmt.Errorf("unable to remove data: %w", err)
+				logger.Error(err)
+			}
 		}
 	}()
 
@@ -583,7 +587,7 @@ func (s *Store) contentCleaner() {
 
 			if !strings.HasSuffix(subContentPath, "/data") {
 				logger := logger.WithFieldKeyVals("subContentPath", subContentPath)
-				err = os.Remove(subContentPath)
+				err = os.Remove(fsutil.ToOSPath(subContentPath))
 				if err != nil {
 					if isNotEmpty(err) {
 						err = nil
@@ -634,6 +638,12 @@ func (s *Store) contentCleaner() {
 			if !ok {
 				err = errors.New("data is not directory")
 				logger.Error(err)
+				err = os.Remove(fsutil.ToOSPath(data.Path))
+				if err != nil {
+					err = fmt.Errorf("unable to remove data: %w", err)
+					logger.Error(err)
+					return false
+				}
 				return true
 			}
 			err = data.Open()
@@ -684,7 +694,7 @@ func (s *Store) trashCleaner() {
 				return false
 			}
 
-			err = os.RemoveAll(subTrashPath)
+			err = os.RemoveAll(fsutil.ToOSPath(subTrashPath))
 			if err != nil {
 				err = fmt.Errorf("unable to remove sub trash directory: %w", err)
 				logger.Error(err)
