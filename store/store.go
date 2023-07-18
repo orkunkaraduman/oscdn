@@ -589,7 +589,7 @@ func (s *Store) contentCleaner() {
 						err = nil
 						return true
 					}
-					err = fmt.Errorf("unable to remove empty content directory: %w", err)
+					err = fmt.Errorf("unable to remove empty sub content directory: %w", err)
 					logger.Error(err)
 					return false
 				}
@@ -686,7 +686,7 @@ func (s *Store) trashCleaner() {
 
 			err = os.RemoveAll(subTrashPath)
 			if err != nil {
-				err = fmt.Errorf("unable to remove sub trash: %w", err)
+				err = fmt.Errorf("unable to remove sub trash directory: %w", err)
 				logger.Error(err)
 				return false
 			}
@@ -694,7 +694,7 @@ func (s *Store) trashCleaner() {
 			return true
 
 		}); e != nil {
-			err = fmt.Errorf("unable to walk content directories: %w", e)
+			err = fmt.Errorf("unable to walk trash directories: %w", e)
 			logger.Error(err)
 		}
 		if err != nil {
