@@ -267,13 +267,13 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 				Header:     data.Header.Clone(),
 			}, nil
 		}
-		_ = data.Close()
 		err = os.RemoveAll(fsutil.ToOSPath(data.Path))
 		if err != nil {
 			err = fmt.Errorf("unable to remove expired data: %w", err)
 			logger.Error(err)
 			return
 		}
+		_ = data.Close()
 	}
 
 	download, err = s.startDownload(ctx, baseURL, keyURL)
@@ -551,22 +551,21 @@ func (s *Store) contentCleaner() {
 	ctx := s.ctx
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	contentPath := path.Join(s.config.Path, "content")
 	for ctx.Err() == nil {
-		if e := walkDir(path.Join(s.config.Path, "content"), func(contentPath string, dirEntry fs.DirEntry) bool {
+		if e := walkDir(contentPath, func(subContentPath string, dirEntry fs.DirEntry) bool {
 			if !dirEntry.IsDir() {
 				return true
 			}
-
-			logger := logger.WithFieldKeyVals("contentPath", contentPath)
-			ctx := context.WithValue(ctx, "logger", logger)
 
 			err = ctx.Err()
 			if err != nil {
 				return false
 			}
 
-			if !strings.HasSuffix(contentPath, "/data") {
-				err = os.Remove(contentPath)
+			if !strings.HasSuffix(subContentPath, "/data") {
+				logger := logger.WithFieldKeyVals("subContentPath", subContentPath)
+				err = os.Remove(subContentPath)
 				if err != nil {
 					if isNotEmpty(err) {
 						err = nil
@@ -579,13 +578,26 @@ func (s *Store) contentCleaner() {
 				return true
 			}
 
-			dataPath := contentPath
+			data := &Data{
+				Path: subContentPath,
+			}
 
-			dataLocker := s.dataLock.Locker(dataPath)
+			logger := logger.WithFieldKeyVals("dataPath", data.Path)
+
+			host := strings.TrimPrefix(subContentPath, contentPath)
+			if idx := strings.Index(host, "/"); idx >= 0 {
+				host = host[:idx]
+			}
+
+			hostLocker := s.hostLock.Locker(host)
+			hostLocker.RLock()
+			defer hostLocker.RUnlock()
+			dataLocker := s.dataLock.Locker(data.Path)
 			dataLocker.Lock()
 			defer dataLocker.Unlock()
 
-			ok, err := fsutil.IsExists(dataPath)
+			var ok bool
+			ok, err = fsutil.IsExists(data.Path)
 			if err != nil {
 				err = fmt.Errorf("unable to check data is exists: %w", err)
 				logger.Error(err)
@@ -595,16 +607,34 @@ func (s *Store) contentCleaner() {
 				return true
 			}
 
-			trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
-			err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
+			ok, err = fsutil.IsDir(data.Path)
 			if err != nil {
-				err = fmt.Errorf("unable to move data to trash: %w", err)
+				err = fmt.Errorf("unable to check data is directory: %w", err)
 				logger.Error(err)
 				return false
 			}
-
+			if !ok {
+				err = errors.New("data is not directory")
+				logger.Error(err)
+				return true
+			}
+			err = data.Open()
+			if err != nil {
+				logger.Error(err)
+				return false
+			}
+			//goland:noinspection GoUnhandledErrorResult
+			defer data.Close()
+			if !data.Info.ExpiresAt.After(time.Now()) {
+				trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
+				err = os.Rename(fsutil.ToOSPath(data.Path), fsutil.ToOSPath(trashPath))
+				if err != nil {
+					err = fmt.Errorf("unable to move data to trash: %w", err)
+					logger.Error(err)
+					return false
+				}
+			}
 			return true
-
 		}); e != nil {
 			err = fmt.Errorf("unable to walk content directories: %w", e)
 			logger.Error(err)
