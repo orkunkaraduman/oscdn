@@ -19,8 +19,8 @@ func main() {
 	s, err := store.New(store.Config{
 		Logger:        logng.DefaultLogger(),
 		Path:          "/Users/orkun/narvi",
-		MaxAge:        48 * time.Hour,
-		DefAge:        24 * time.Hour,
+		MaxAge:        120 * time.Second,
+		DefAge:        60 * time.Second,
 		TLSConfig:     nil,
 		UserAgent:     "oscdn",
 		MaxIdleConns:  100,
