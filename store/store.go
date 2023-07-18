@@ -84,7 +84,7 @@ func New(config Config) (result *Store, err error) {
 		}
 	}()
 
-	err = os.Mkdir(fsutil.ToOSPath(fmt.Sprintf("%s/trash", s.config.Path)), 0777)
+	err = os.Mkdir(fsutil.ToOSPath(path.Join(s.config.Path, "trash")), 0777)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("unable to create trash directory: %w", err)
 	}
@@ -168,12 +168,12 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 }
 
 func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
-	result := fmt.Sprintf("%s/content/%s", s.config.Path, baseURL.Host)
+	result := path.Join(s.config.Path, "content", baseURL.Host)
 	h := sha256.Sum256([]byte((keyURL.String())))
 	for i, j := 0, len(h); i < j; i = i + 2 {
 		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
 	}
-	result += "/data"
+	result = path.Join(result, "data")
 	return result
 }
 
@@ -485,7 +485,7 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 		return ErrNotExists
 	}
 
-	trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
+	trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
 	if err != nil {
 		err = fmt.Errorf("unable to move data to trash: %w", err)
@@ -514,7 +514,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 		return
 	}
 
-	hostPath := fmt.Sprintf("%s/content/%s", s.config.Path, host)
+	hostPath := path.Join(s.config.Path, "content", host)
 
 	logger = logger.WithFieldKeyVals("hostPath", hostPath)
 	ctx = context.WithValue(ctx, "logger", logger)
@@ -533,7 +533,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 		return ErrNotExists
 	}
 
-	trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
+	trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(hostPath), fsutil.ToOSPath(trashPath))
 	if err != nil {
 		err = fmt.Errorf("unable to move host to trash: %w", err)
@@ -595,7 +595,7 @@ func (s *Store) contentCleaner() {
 				return true
 			}
 
-			trashPath := fmt.Sprintf("%s/trash/%s", s.config.Path, uuid.NewString())
+			trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
 			err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
 			if err != nil {
 				err = fmt.Errorf("unable to move data to trash: %w", err)
