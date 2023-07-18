@@ -10,8 +10,7 @@ import (
 
 func isNotEmpty(err error) bool {
 	if e := new(os.PathError); errors.As(err, &e) {
-		e, ok := e.Err.(*os.SyscallError)
-		if ok && e.Err == syscall.ENOTEMPTY {
+		if e.Err == syscall.ENOTEMPTY {
 			return true
 		}
 	}
