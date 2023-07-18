@@ -474,7 +474,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 			logger.V(2).Warning(err)
 			if download == downloadNew {
 				err = os.RemoveAll(fsutil.ToOSPath(data.Path))
-				if err != nil {
+				if err != nil && !os.IsNotExist(err) {
 					err = fmt.Errorf("unable to remove data: %w", err)
 					logger.Error(err)
 				}
