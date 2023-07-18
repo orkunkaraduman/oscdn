@@ -451,6 +451,15 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	return download, nil
 }
 
+func (s *Store) moveToTrash(sourcePath string) (err error) {
+	targetPath := path.Join(s.trashPath, uuid.NewString())
+	err = os.Rename(fsutil.ToOSPath(sourcePath), fsutil.ToOSPath(targetPath))
+	if err != nil {
+		return fmt.Errorf("unable to move to trash: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
@@ -492,10 +501,8 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 		return ErrNotExists
 	}
 
-	trashPath := path.Join(s.trashPath, uuid.NewString())
-	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
+	err = s.moveToTrash(dataPath)
 	if err != nil {
-		err = fmt.Errorf("unable to move data to trash: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -540,10 +547,8 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 		return ErrNotExists
 	}
 
-	trashPath := path.Join(s.trashPath, uuid.NewString())
-	err = os.Rename(fsutil.ToOSPath(hostPath), fsutil.ToOSPath(trashPath))
+	err = s.moveToTrash(hostPath)
 	if err != nil {
-		err = fmt.Errorf("unable to move host to trash: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -632,10 +637,8 @@ func (s *Store) contentCleaner() {
 			//goland:noinspection GoUnhandledErrorResult
 			defer data.Close()
 			if !data.Info.ExpiresAt.After(time.Now()) {
-				trashPath := path.Join(s.trashPath, uuid.NewString())
-				err = os.Rename(fsutil.ToOSPath(data.Path), fsutil.ToOSPath(trashPath))
+				err = s.moveToTrash(data.Path)
 				if err != nil {
-					err = fmt.Errorf("unable to move data to trash: %w", err)
 					logger.Error(err)
 					return false
 				}
