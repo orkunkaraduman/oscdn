@@ -17,9 +17,10 @@ import (
 func main() {
 	logng.Info("aa")
 	s, err := store.New(store.Config{
+		Logger:        logng.DefaultLogger(),
 		Path:          "/Users/orkun/narvi",
-		DefAge:        0, //24 * time.Hour,
 		MaxAge:        48 * time.Hour,
+		DefAge:        24 * time.Hour,
 		TLSConfig:     nil,
 		UserAgent:     "oscdn",
 		MaxIdleConns:  100,
