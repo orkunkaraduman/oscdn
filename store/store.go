@@ -90,6 +90,10 @@ func New(config Config) (result *Store, err error) {
 			_ = s.lockFile.Release()
 		}
 	}()
+	err = s.lockFile.Truncate(0)
+	if err != nil {
+		return nil, fmt.Errorf("unable to truncate store lock: %w", err)
+	}
 
 	err = os.Mkdir(fsutil.ToOSPath(s.contentPath), 0777)
 	if err != nil && !os.IsExist(err) {
