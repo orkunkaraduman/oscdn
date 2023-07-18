@@ -679,7 +679,7 @@ func (s *Store) contentCleaner() {
 
 		select {
 		case <-ctx.Done():
-		case <-time.After(25 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 		}
 	}
 }
@@ -723,7 +723,7 @@ func (s *Store) trashCleaner() {
 
 		select {
 		case <-ctx.Done():
-		case <-time.After(25 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 		}
 	}
 }
