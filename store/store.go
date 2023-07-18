@@ -460,6 +460,10 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		dataLocker.Lock()
 		defer dataLocker.Unlock()
 
+		s.downloadsMu.RLock()
+		download := s.downloads[keyRawURL]
+		s.downloadsMu.RUnlock()
+
 		select {
 		case <-download:
 		default:
