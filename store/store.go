@@ -97,6 +97,7 @@ func (s *Store) Release() (err error) {
 		if e := s.lockFile.Release(); e != nil && err == nil {
 			err = fmt.Errorf("unable to release store lock: %w", e)
 		}
+		_ = os.Remove(fsutil.ToOSPath(s.config.Path + "/lock"))
 	})
 	return
 }
@@ -262,7 +263,12 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 			}, nil
 		}
 		_ = data.Close()
-		_ = os.RemoveAll(fsutil.ToOSPath(data.Path))
+		err = os.RemoveAll(fsutil.ToOSPath(data.Path))
+		if err != nil {
+			err = fmt.Errorf("unable to remove expired data: %w", err)
+			logger.Error(err)
+			return
+		}
 	}
 
 	download, err = s.startDownload(ctx, baseURL, keyURL)
