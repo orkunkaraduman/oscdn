@@ -34,6 +34,9 @@ type Store struct {
 
 	config      Config
 	httpClient  *http.Client
+	lockPath    string
+	contentPath string
+	trashPath   string
 	hostLock    *namedlock.NamedLock
 	dataLock    *namedlock.NamedLock
 	downloads   map[string]chan struct{}
@@ -43,6 +46,13 @@ type Store struct {
 }
 
 func New(config Config) (result *Store, err error) {
+	if config.Path == "" {
+		config.Path = "."
+	}
+	if config.UserAgent == "" {
+		config.UserAgent = "oscdn"
+	}
+
 	s := &Store{
 		ctx:    xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", config.Logger)),
 		config: config,
@@ -63,18 +73,15 @@ func New(config Config) (result *Store, err error) {
 				ForceAttemptHTTP2:      true,
 			},
 		},
-		hostLock:  namedlock.New(),
-		dataLock:  namedlock.New(),
-		downloads: make(map[string]chan struct{}, 4096),
+		lockPath:    path.Join(config.Path, "lock"),
+		contentPath: path.Join(config.Path, "content"),
+		trashPath:   path.Join(config.Path, "trash"),
+		hostLock:    namedlock.New(),
+		dataLock:    namedlock.New(),
+		downloads:   make(map[string]chan struct{}, 4096),
 	}
 
-	if s.config.Path == "" {
-		s.config.Path = "."
-	}
-	if s.config.UserAgent == "" {
-		s.config.UserAgent = "oscdn"
-	}
-	s.lockFile, err = filelock.Create(fsutil.ToOSPath(s.config.Path+"/lock"), 0666)
+	s.lockFile, err = filelock.Create(fsutil.ToOSPath(s.lockPath), 0666)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get store lock: %w", err)
 	}
@@ -84,7 +91,7 @@ func New(config Config) (result *Store, err error) {
 		}
 	}()
 
-	err = os.Mkdir(fsutil.ToOSPath(path.Join(s.config.Path, "trash")), 0777)
+	err = os.Mkdir(fsutil.ToOSPath(s.trashPath), 0777)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("unable to create trash directory: %w", err)
 	}
@@ -102,7 +109,7 @@ func (s *Store) Release() (err error) {
 		if e := s.lockFile.Release(); e != nil && err == nil {
 			err = fmt.Errorf("unable to release store lock: %w", e)
 		}
-		_ = os.Remove(fsutil.ToOSPath(s.config.Path + "/lock"))
+		_ = os.Remove(fsutil.ToOSPath(s.lockPath))
 	})
 	return
 }
@@ -168,7 +175,7 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 }
 
 func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
-	result := path.Join(s.config.Path, "content", baseURL.Host)
+	result := path.Join(s.contentPath, baseURL.Host)
 	h := sha256.Sum256([]byte((keyURL.String())))
 	for i, j := 0, len(h); i < j; i = i + 2 {
 		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
@@ -485,7 +492,7 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 		return ErrNotExists
 	}
 
-	trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
+	trashPath := path.Join(s.trashPath, uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(dataPath), fsutil.ToOSPath(trashPath))
 	if err != nil {
 		err = fmt.Errorf("unable to move data to trash: %w", err)
@@ -514,7 +521,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 		return
 	}
 
-	hostPath := path.Join(s.config.Path, "content", host)
+	hostPath := path.Join(s.contentPath, host)
 
 	logger = logger.WithFieldKeyVals("hostPath", hostPath)
 	ctx = context.WithValue(ctx, "logger", logger)
@@ -533,7 +540,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 		return ErrNotExists
 	}
 
-	trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
+	trashPath := path.Join(s.trashPath, uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(hostPath), fsutil.ToOSPath(trashPath))
 	if err != nil {
 		err = fmt.Errorf("unable to move host to trash: %w", err)
@@ -551,9 +558,8 @@ func (s *Store) contentCleaner() {
 	ctx := s.ctx
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
-	contentPath := path.Join(s.config.Path, "content")
 	for ctx.Err() == nil {
-		if e := walkDir(contentPath, func(subContentPath string, dirEntry fs.DirEntry) bool {
+		if e := walkDir(s.contentPath, func(subContentPath string, dirEntry fs.DirEntry) bool {
 			if !dirEntry.IsDir() {
 				return true
 			}
@@ -584,7 +590,7 @@ func (s *Store) contentCleaner() {
 
 			logger := logger.WithFieldKeyVals("dataPath", data.Path)
 
-			host := strings.TrimPrefix(subContentPath, contentPath)
+			host := strings.TrimPrefix(subContentPath, s.contentPath)
 			if idx := strings.Index(host, "/"); idx >= 0 {
 				host = host[:idx]
 			}
@@ -626,7 +632,7 @@ func (s *Store) contentCleaner() {
 			//goland:noinspection GoUnhandledErrorResult
 			defer data.Close()
 			if !data.Info.ExpiresAt.After(time.Now()) {
-				trashPath := path.Join(s.config.Path, "trash", uuid.NewString())
+				trashPath := path.Join(s.trashPath, uuid.NewString())
 				err = os.Rename(fsutil.ToOSPath(data.Path), fsutil.ToOSPath(trashPath))
 				if err != nil {
 					err = fmt.Errorf("unable to move data to trash: %w", err)
