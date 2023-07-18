@@ -91,6 +91,10 @@ func New(config Config) (result *Store, err error) {
 		}
 	}()
 
+	err = os.Mkdir(fsutil.ToOSPath(s.contentPath), 0777)
+	if err != nil && !os.IsExist(err) {
+		return nil, fmt.Errorf("unable to create content directory: %w", err)
+	}
 	err = os.Mkdir(fsutil.ToOSPath(s.trashPath), 0777)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("unable to create trash directory: %w", err)
