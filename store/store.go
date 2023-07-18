@@ -99,6 +99,9 @@ func New(config Config) (result *Store, err error) {
 	s.wg.Add(1)
 	go s.contentCleaner()
 
+	s.wg.Add(1)
+	go s.trashCleaner()
+
 	return s, nil
 }
 
@@ -648,6 +651,48 @@ func (s *Store) contentCleaner() {
 				}
 			}
 			return true
+		}); e != nil {
+			err = fmt.Errorf("unable to walk content directories: %w", e)
+			logger.Error(err)
+		}
+		if err != nil {
+			err = nil
+		}
+
+		select {
+		case <-ctx.Done():
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+}
+
+func (s *Store) trashCleaner() {
+	defer s.wg.Done()
+
+	var err error
+	ctx := s.ctx
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	for ctx.Err() == nil {
+		if e := walkDir(s.trashPath, func(subTrashPath string, dirEntry fs.DirEntry) bool {
+			if !dirEntry.IsDir() {
+				return true
+			}
+
+			err = ctx.Err()
+			if err != nil {
+				return false
+			}
+
+			err = os.RemoveAll(subTrashPath)
+			if err != nil {
+				err = fmt.Errorf("unable to remove sub trash: %w", err)
+				logger.Error(err)
+				return false
+			}
+
+			return true
+
 		}); e != nil {
 			err = fmt.Errorf("unable to walk content directories: %w", e)
 			logger.Error(err)
