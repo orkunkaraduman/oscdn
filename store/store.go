@@ -499,6 +499,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 				if err != nil && !os.IsNotExist(err) {
 					err = fmt.Errorf("unable to move incomplete data to trash: %w", err)
 					logger.Error(err)
+					err = nil
 				}
 			}
 		}
@@ -710,8 +711,9 @@ func (s *Store) contentCleaner() {
 			}
 			return true
 		}); e != nil {
-			err = fmt.Errorf("unable to walk content directories: %w", e)
-			logger.Error(err)
+			e = fmt.Errorf("unable to walk content directories: %w", e)
+			logger.Error(e)
+			e = nil
 		}
 		if err != nil {
 			err = nil
@@ -754,8 +756,9 @@ func (s *Store) trashCleaner() {
 			return true
 
 		}); e != nil {
-			err = fmt.Errorf("unable to walk trash directories: %w", e)
-			logger.Error(err)
+			e = fmt.Errorf("unable to walk trash directories: %w", e)
+			logger.Error(e)
+			e = nil
 		}
 		if err != nil {
 			err = nil
