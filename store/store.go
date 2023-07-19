@@ -217,6 +217,9 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	}
 	keyRawURL := keyURL.String()
 
+	result.BaseURL = baseURL
+	result.KeyURL = keyURL
+
 	data := &Data{
 		Path: s.getDataPath(baseURL, keyURL),
 	}
@@ -255,13 +258,11 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 				logger.Error(err)
 				return
 			}
-			return GetResult{
-				ReadCloser: s.pipeData(ctx, data, download),
-				BaseURL:    baseURL,
-				KeyURL:     keyURL,
-				StatusCode: data.Info.StatusCode,
-				Header:     data.Header.Clone(),
-			}, nil
+			result.ReadCloser = s.pipeData(ctx, data, download)
+			result.CacheStatus = CacheStatusUpdating
+			result.StatusCode = data.Info.StatusCode
+			result.Header = data.Header.Clone()
+			return
 		}
 	}
 
@@ -284,13 +285,11 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 			return
 		}
 		if data.Info.ExpiresAt.After(now) {
-			return GetResult{
-				ReadCloser: s.pipeData(ctx, data, nil),
-				BaseURL:    baseURL,
-				KeyURL:     keyURL,
-				StatusCode: data.Info.StatusCode,
-				Header:     data.Header.Clone(),
-			}, nil
+			result.ReadCloser = s.pipeData(ctx, data, nil)
+			result.CacheStatus = CacheStatusHit
+			result.StatusCode = data.Info.StatusCode
+			result.Header = data.Header.Clone()
+			return
 		}
 		_ = data.Close()
 		err = os.RemoveAll(fsutil.ToOSPath(data.Path))
@@ -305,6 +304,24 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 	if err != nil {
 		return
 	}
+
+	if download == nil {
+		if exists {
+			err = data.Open()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			result.ReadCloser = s.pipeData(ctx, data, nil)
+			result.CacheStatus = CacheStatusStale
+			result.StatusCode = data.Info.StatusCode
+			result.Header = data.Header.Clone()
+			return
+		}
+		err = ErrDownloadError
+		return
+	}
+
 	data = &Data{
 		Path: data.Path,
 	}
@@ -313,13 +330,15 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 		logger.Error(err)
 		return
 	}
-	return GetResult{
-		ReadCloser: s.pipeData(ctx, data, download),
-		BaseURL:    baseURL,
-		KeyURL:     keyURL,
-		StatusCode: data.Info.StatusCode,
-		Header:     data.Header.Clone(),
-	}, nil
+	result.ReadCloser = s.pipeData(ctx, data, download)
+	if !exists {
+		result.CacheStatus = CacheStatusMiss
+	} else {
+		result.CacheStatus = CacheStatusExpired
+	}
+	result.StatusCode = data.Info.StatusCode
+	result.Header = data.Header.Clone()
+	return
 }
 
 func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.ReadCloser {
@@ -391,7 +410,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request error: %w", err)
+		err = fmt.Errorf("request error: %w", err)
+		logger.V(2).Warning(err)
+		return nil, nil
 	}
 	//goland:noinspection GoUnhandledErrorResult
 	defer func() {
