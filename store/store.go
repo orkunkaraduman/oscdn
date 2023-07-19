@@ -454,17 +454,17 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		return nil, ErrDynamicContent
 	}
 
-	download = make(chan struct{})
-
-	s.downloadsMu.Lock()
-	s.downloads[keyRawURL] = download
-	s.downloadsMu.Unlock()
-
 	err = data.Create()
 	if err != nil {
 		logger.Error(err)
 		return nil, err
 	}
+
+	download = make(chan struct{})
+
+	s.downloadsMu.Lock()
+	s.downloads[keyRawURL] = download
+	s.downloadsMu.Unlock()
 
 	s.wg.Add(1)
 	go func() {
