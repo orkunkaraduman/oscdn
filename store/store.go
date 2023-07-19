@@ -292,9 +292,9 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 			return
 		}
 		_ = data.Close()
-		err = os.RemoveAll(fsutil.ToOSPath(data.Path))
+		err = s.moveToTrash(data.Path)
 		if err != nil {
-			err = fmt.Errorf("unable to remove expired data: %w", err)
+			err = fmt.Errorf("unable to move expired data to trash: %w", err)
 			logger.Error(err)
 			return
 		}
@@ -494,9 +494,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		if err != nil {
 			logger.V(2).Warning(err)
 			if download == downloadNew {
-				err = os.RemoveAll(fsutil.ToOSPath(data.Path))
+				err = s.moveToTrash(data.Path)
 				if err != nil && !os.IsNotExist(err) {
-					err = fmt.Errorf("unable to remove data: %w", err)
+					err = fmt.Errorf("unable to move incomplete data to trash: %w", err)
 					logger.Error(err)
 				}
 			}
@@ -510,7 +510,7 @@ func (s *Store) moveToTrash(sourcePath string) (err error) {
 	targetPath := path.Join(s.trashPath, uuid.NewString())
 	err = os.Rename(fsutil.ToOSPath(sourcePath), fsutil.ToOSPath(targetPath))
 	if err != nil {
-		return fmt.Errorf("unable to move to trash: %w", err)
+		return err
 	}
 	return nil
 }
@@ -558,6 +558,7 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 
 	err = s.moveToTrash(dataPath)
 	if err != nil {
+		err = fmt.Errorf("unable to move purging data to trash: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -604,6 +605,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 
 	err = s.moveToTrash(hostPath)
 	if err != nil {
+		err = fmt.Errorf("unable to move host to trash: %w", err)
 		logger.Error(err)
 		return
 	}
@@ -700,6 +702,7 @@ func (s *Store) contentCleaner() {
 			if !data.Info.ExpiresAt.After(time.Now()) {
 				err = s.moveToTrash(data.Path)
 				if err != nil {
+					err = fmt.Errorf("unable to move data to trash: %w", err)
 					logger.Error(err)
 					return false
 				}
