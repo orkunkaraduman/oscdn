@@ -292,12 +292,6 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 			return
 		}
 		_ = data.Close()
-		err = s.moveToTrash(data.Path)
-		if err != nil {
-			err = fmt.Errorf("unable to move expired data to trash: %w", err)
-			logger.Error(err)
-			return
-		}
 	}
 
 	download, err = s.startDownload(ctx, baseURL, keyURL)
@@ -445,6 +439,13 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		if expires.Sub(data.Info.ExpiresAt) < 0 {
 			data.Info.ExpiresAt = expires
 		}
+	}
+
+	err = s.moveToTrash(data.Path)
+	if err != nil && !os.IsNotExist(err) {
+		err = fmt.Errorf("unable to move expired data to trash: %w", err)
+		logger.Error(err)
+		return
 	}
 
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
