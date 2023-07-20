@@ -524,7 +524,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	go func() {
 		defer s.wg.Done()
 
-		_, err := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
+		written, err := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
 		close(download)
@@ -544,6 +544,10 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 			s.downloadsMu.Lock()
 			delete(s.downloads, keyRawURL)
 			s.downloadsMu.Unlock()
+		}
+
+		if err == nil && written != data.Info.Size {
+			err = errors.New("different content size")
 		}
 
 		if err != nil {
