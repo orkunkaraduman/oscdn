@@ -17,9 +17,9 @@ import (
 )
 
 type Server struct {
-	ctx       xcontext.CancelableContext
-	wg        sync.WaitGroup
-	closeOnce sync.Once
+	ctx      xcontext.CancelableContext
+	wg       sync.WaitGroup
+	stopOnce sync.Once
 
 	config   Config
 	listener net.Listener
@@ -91,7 +91,7 @@ func NewServer(config Config) (result *Server, err error) {
 }
 
 func (s *Server) Stop(ctx context.Context) (err error) {
-	s.closeOnce.Do(func() {
+	s.stopOnce.Do(func() {
 		if e := s.httpSrv.Shutdown(ctx); e != nil && err == nil {
 			err = fmt.Errorf("http server shutdown error: %w", e)
 		}
