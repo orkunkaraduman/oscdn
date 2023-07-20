@@ -9,3 +9,5 @@ require (
 	github.com/goinsane/xcontext v1.7.0
 	github.com/google/uuid v1.3.0
 )
+
+require github.com/valyala/tcplisten v1.0.0 // indirect

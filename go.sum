@@ -8,3 +8,5 @@ github.com/goinsane/xcontext v1.7.0 h1:Jz6Gh2WCOu/u84d2iCrPUMfOwFAKLfCDs4mLGTunN
 github.com/goinsane/xcontext v1.7.0/go.mod h1:y+fK+cXBf9T6MBP7XFXQbYrsyhzlhRVVIIRVTxc6QjY=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/valyala/tcplisten v1.0.0 h1:rBHj/Xf+E1tRGZyWIWwJDiRY0zc1Js+CV5DqwacVSA8=
+github.com/valyala/tcplisten v1.0.0/go.mod h1:T0xQ8SeCZGxckz9qRXTfG43PvQ/mcWh7FwZEA7Ioqkc=
