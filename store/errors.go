@@ -15,5 +15,5 @@ type RequestError struct {
 }
 type DynamicContentError struct {
 	error
-	Resp *http.Response
+	resp *http.Response
 }

@@ -307,12 +307,13 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 				result.CacheStatus = CacheStatusStale
 				result.StatusCode = data.Info.StatusCode
 				result.Header = data.Header.Clone()
+				err = nil
 				return
 			}
 			return
 		case *DynamicContentError:
-			result.StatusCode = e.Resp.StatusCode
-			result.Header = e.Resp.Header.Clone()
+			result.StatusCode = e.resp.StatusCode
+			result.Header = e.resp.Header.Clone()
 			return
 		}
 		return
@@ -453,7 +454,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
 		!data.Info.ExpiresAt.After(now)
 	if dynamic {
-		err = &DynamicContentError{error: errors.New("dynamic content"), Resp: resp}
+		err = &DynamicContentError{error: errors.New("dynamic content"), resp: resp}
 		logger.V(2).Info(err)
 		return nil, err
 	}
