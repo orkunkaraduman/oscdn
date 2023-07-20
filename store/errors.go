@@ -1,10 +1,19 @@
 package store
 
-import "errors"
+import (
+	"errors"
+	"net/http"
+)
 
 var (
-	ErrReleased       = errors.New("store released")
-	ErrDynamicContent = errors.New("dynamic content")
-	ErrDownloadError  = errors.New("download error")
-	ErrNotExists      = errors.New("not exists")
+	ErrReleased  = errors.New("store released")
+	ErrNotExists = errors.New("not exists")
 )
+
+type RequestError struct {
+	error
+}
+type DynamicContentError struct {
+	error
+	Resp *http.Response
+}

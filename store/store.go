@@ -120,7 +120,6 @@ func (s *Store) Release() (err error) {
 		if e := s.lockFile.Release(); e != nil && err == nil {
 			err = fmt.Errorf("unable to release store lock: %w", e)
 		}
-		_ = os.Remove(fsutil.ToOSPath(s.lockPath))
 	})
 	return
 }
@@ -296,23 +295,26 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 
 	download, err = s.startDownload(ctx, baseURL, keyURL)
 	if err != nil {
-		return
-	}
-
-	if download == nil {
-		if exists {
-			err = data.Open()
-			if err != nil {
-				logger.Error(err)
+		switch e := err.(type) {
+		case *RequestError:
+			if exists {
+				err = data.Open()
+				if err != nil {
+					logger.Error(err)
+					return
+				}
+				result.ReadCloser = s.pipeData(ctx, data, nil)
+				result.CacheStatus = CacheStatusStale
+				result.StatusCode = data.Info.StatusCode
+				result.Header = data.Header.Clone()
 				return
 			}
-			result.ReadCloser = s.pipeData(ctx, data, nil)
-			result.CacheStatus = CacheStatusStale
-			result.StatusCode = data.Info.StatusCode
-			result.Header = data.Header.Clone()
+			return
+		case *DynamicContentError:
+			result.StatusCode = e.Resp.StatusCode
+			result.Header = e.Resp.Header.Clone()
 			return
 		}
-		err = ErrDownloadError
 		return
 	}
 
@@ -404,9 +406,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		err = fmt.Errorf("request error: %w", err)
+		err = &RequestError{fmt.Errorf("request error: %w", err)}
 		logger.V(2).Warning(err)
-		return nil, nil
+		return nil, err
 	}
 	//goland:noinspection GoUnhandledErrorResult
 	defer func() {
@@ -445,13 +447,15 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	if err != nil && !os.IsNotExist(err) {
 		err = fmt.Errorf("unable to move expired data to trash: %w", err)
 		logger.Error(err)
-		return
+		return nil, err
 	}
 
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
 		!data.Info.ExpiresAt.After(now)
 	if dynamic {
-		return nil, ErrDynamicContent
+		err = &DynamicContentError{error: errors.New("dynamic content"), Resp: resp}
+		logger.V(2).Info(err)
+		return nil, err
 	}
 
 	err = data.Create()
