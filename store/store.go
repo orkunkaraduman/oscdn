@@ -207,6 +207,11 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
 
+	var contentRangeNew *ContentRange
+	if contentRange != nil {
+		contentRangeNew = &(*contentRange)
+	}
+
 	result.ReadCloser = io.NopCloser(&ioutil.NopReader{Err: io.EOF})
 
 	baseURL, keyURL, err := s.getURLs(rawURL, host)
@@ -262,10 +267,6 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
 			result.Size = data.Info.Size
-			if contentRange != nil {
-				contentRange.Start = -1
-				contentRange.End = -1
-			}
 			return
 		}
 	}
@@ -289,11 +290,12 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			return
 		}
 		if data.Info.ExpiresAt.After(now) {
-			result.ReadCloser = s.pipeData(ctx, data, contentRange, nil)
+			result.ReadCloser = s.pipeData(ctx, data, contentRangeNew, nil)
 			result.CacheStatus = CacheStatusHit
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
 			result.Size = data.Info.Size
+			result.ContentRange = contentRangeNew
 			return
 		}
 		_ = data.Close()
@@ -309,11 +311,12 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 					logger.Error(err)
 					return
 				}
-				result.ReadCloser = s.pipeData(ctx, data, contentRange, nil)
+				result.ReadCloser = s.pipeData(ctx, data, contentRangeNew, nil)
 				result.CacheStatus = CacheStatusStale
 				result.StatusCode = data.Info.StatusCode
 				result.Header = data.Header.Clone()
 				result.Size = data.Info.Size
+				result.ContentRange = contentRangeNew
 				err = nil
 				return
 			}
@@ -345,10 +348,6 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 	result.StatusCode = data.Info.StatusCode
 	result.Header = data.Header.Clone()
 	result.Size = data.Info.Size
-	if contentRange != nil {
-		contentRange.Start = -1
-		contentRange.End = -1
-	}
 	return
 }
 

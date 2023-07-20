@@ -51,10 +51,11 @@ type ContentRange struct {
 
 type GetResult struct {
 	io.ReadCloser
-	BaseURL     *url.URL
-	KeyURL      *url.URL
-	CacheStatus CacheStatus
-	StatusCode  int
-	Header      http.Header
-	Size        int64
+	BaseURL      *url.URL
+	KeyURL       *url.URL
+	CacheStatus  CacheStatus
+	StatusCode   int
+	Header       http.Header
+	Size         int64
+	ContentRange *ContentRange
 }
