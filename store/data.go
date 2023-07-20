@@ -16,12 +16,12 @@ import (
 type Data struct {
 	Path string
 	Info struct {
-		BaseURL       string
-		KeyURL        string
-		StatusCode    int
-		ContentLength int64
-		CreatedAt     time.Time
-		ExpiresAt     time.Time
+		BaseURL    string
+		KeyURL     string
+		StatusCode int
+		Size       int64
+		CreatedAt  time.Time
+		ExpiresAt  time.Time
 	}
 	Header http.Header
 

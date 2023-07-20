@@ -257,10 +257,11 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 				logger.Error(err)
 				return
 			}
-			result.ReadCloser = s.pipeData(ctx, data, download)
+			result.ReadCloser = s.pipeData(ctx, data, nil, download)
 			result.CacheStatus = CacheStatusUpdating
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
+			result.Size = data.Info.Size
 			return
 		}
 	}
@@ -284,10 +285,11 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			return
 		}
 		if data.Info.ExpiresAt.After(now) {
-			result.ReadCloser = s.pipeData(ctx, data, nil)
+			result.ReadCloser = s.pipeData(ctx, data, contentRange, nil)
 			result.CacheStatus = CacheStatusHit
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
+			result.Size = data.Info.Size
 			return
 		}
 		_ = data.Close()
@@ -303,10 +305,11 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 					logger.Error(err)
 					return
 				}
-				result.ReadCloser = s.pipeData(ctx, data, nil)
+				result.ReadCloser = s.pipeData(ctx, data, contentRange, nil)
 				result.CacheStatus = CacheStatusStale
 				result.StatusCode = data.Info.StatusCode
 				result.Header = data.Header.Clone()
+				result.Size = data.Info.Size
 				err = nil
 				return
 			}
@@ -315,6 +318,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.CacheStatus = CacheStatusDynamic
 			result.StatusCode = e.resp.StatusCode
 			result.Header = e.resp.Header.Clone()
+			result.Size = -1
 			return
 		}
 		return
@@ -328,7 +332,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 		logger.Error(err)
 		return
 	}
-	result.ReadCloser = s.pipeData(ctx, data, download)
+	result.ReadCloser = s.pipeData(ctx, data, nil, download)
 	if !exists {
 		result.CacheStatus = CacheStatusMiss
 	} else {
@@ -336,11 +340,32 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 	}
 	result.StatusCode = data.Info.StatusCode
 	result.Header = data.Header.Clone()
+	result.Size = data.Info.Size
 	return
 }
 
-func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}) io.ReadCloser {
+func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentRange, download chan struct{}) io.ReadCloser {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	if contentRange != nil {
+		if download != nil {
+			panic("download non-nil")
+		}
+		if contentRange.Start < 0 {
+			contentRange.Start = 0
+		}
+		if contentRange.Start > data.Info.Size {
+			contentRange.Start = data.Info.Size
+		}
+		if contentRange.End >= 0 {
+			if contentRange.End > data.Info.Size {
+				contentRange.End = data.Info.Size
+			}
+			if contentRange.End < contentRange.Start {
+				contentRange.End = contentRange.Start
+			}
+		}
+	}
 
 	pr, pw := io.Pipe()
 
@@ -353,8 +378,24 @@ func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}
 		defer data.Close()
 		//goland:noinspection GoUnhandledErrorResult
 		defer pw.Close()
+
+		f := data.Body()
+		r := io.Reader(f)
+		if contentRange != nil {
+			if contentRange.Start > 0 {
+				_, err = f.Seek(contentRange.Start, io.SeekStart)
+				if err != nil {
+					logger.Errorf("seek error: %w", err)
+					return
+				}
+			}
+			if contentRange.End >= 0 {
+				r = io.LimitReader(f, contentRange.End-contentRange.Start)
+			}
+		}
+
 		for {
-			_, err = io.Copy(pw, data.Body())
+			_, err = io.Copy(pw, r)
 			if err != nil {
 				switch err {
 				case io.ErrClosedPipe:
@@ -373,7 +414,7 @@ func (s *Store) pipeData(ctx context.Context, data *Data, download chan struct{}
 				_ = pw.CloseWithError(ErrReleased)
 				return
 			case <-download:
-				_, err = io.Copy(pw, data.Body())
+				_, err = io.Copy(pw, r)
 				if err != nil {
 					switch err {
 					case io.ErrClosedPipe:
@@ -428,7 +469,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.BaseURL = baseRawURL
 	data.Info.KeyURL = keyRawURL
 	data.Info.StatusCode = resp.StatusCode
-	data.Info.ContentLength = resp.ContentLength
+	data.Info.Size = resp.ContentLength
 	data.Info.CreatedAt = now
 	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
 

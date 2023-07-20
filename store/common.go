@@ -56,4 +56,5 @@ type GetResult struct {
 	CacheStatus CacheStatus
 	StatusCode  int
 	Header      http.Header
+	Size        int64
 }
