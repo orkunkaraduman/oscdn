@@ -262,6 +262,10 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
 			result.Size = data.Info.Size
+			if contentRange != nil {
+				contentRange.Start = -1
+				contentRange.End = -1
+			}
 			return
 		}
 	}
@@ -341,6 +345,10 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 	result.StatusCode = data.Info.StatusCode
 	result.Header = data.Header.Clone()
 	result.Size = data.Info.Size
+	if contentRange != nil {
+		contentRange.Start = -1
+		contentRange.End = -1
+	}
 	return
 }
 
