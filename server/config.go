@@ -1,9 +1,17 @@
 package server
 
-import "github.com/orkunkaraduman/oscdn/store"
+import (
+	"crypto/tls"
+
+	"github.com/goinsane/logng"
+
+	"github.com/orkunkaraduman/oscdn/store"
+)
 
 type Config struct {
-	HttpListen  string
-	HttpsListen string
-	Store       *store.Store
+	Logger        *logng.Logger
+	Listen        string
+	ListenBacklog int
+	TLSConfig     *tls.Config
+	Store         *store.Store
 }
