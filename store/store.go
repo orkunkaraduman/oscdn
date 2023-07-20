@@ -325,13 +325,10 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.StatusCode = e.resp.StatusCode
 			result.Header = e.resp.Header.Clone()
 			result.Size = -1
-		default:
-			switch err {
-			case ErrSizeExceeded:
-				result.StatusCode = data.Info.StatusCode
-				result.Header = data.Header.Clone()
-				result.Size = data.Info.Size
-			}
+		case *SizeExceededError:
+			result.StatusCode = data.Info.StatusCode
+			result.Header = data.Header.Clone()
+			result.Size = data.Info.Size
 		}
 		return
 	}
@@ -486,7 +483,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
 
 	if s.config.MaxSize > 0 && data.Info.Size > s.config.MaxSize {
-		err = ErrSizeExceeded
+		err = &SizeExceededError{error: errors.New("size exceeded"), Size: data.Info.Size}
 		logger.V(2).Info(err)
 		return nil, err
 	}

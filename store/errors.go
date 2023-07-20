@@ -6,13 +6,16 @@ import (
 )
 
 var (
-	ErrReleased     = errors.New("store released")
-	ErrSizeExceeded = errors.New("size exceeded")
-	ErrNotExists    = errors.New("not exists")
+	ErrReleased  = errors.New("store released")
+	ErrNotExists = errors.New("not exists")
 )
 
 type RequestError struct {
 	error
+}
+type SizeExceededError struct {
+	error
+	Size int64
 }
 type DynamicContentError struct {
 	error
