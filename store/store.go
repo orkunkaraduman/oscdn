@@ -194,7 +194,7 @@ func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
 	return result
 }
 
-func (s *Store) Get(ctx context.Context, rawURL string, host string) (result GetResult, err error) {
+func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRange *ContentRange) (result GetResult, err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	select {
@@ -312,6 +312,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string) (result Get
 			}
 			return
 		case *DynamicContentError:
+			result.CacheStatus = CacheStatusDynamic
 			result.StatusCode = e.resp.StatusCode
 			result.Header = e.resp.Header.Clone()
 			return
@@ -648,7 +649,7 @@ func (s *Store) contentCleaner() {
 						err = nil
 						return true
 					}
-					err = fmt.Errorf("unable to remove empty sub content directory: %w", err)
+					err = fmt.Errorf("unable to remove sub content directory: %w", err)
 					logger.Error(err)
 					return false
 				}
@@ -720,7 +721,6 @@ func (s *Store) contentCleaner() {
 		}); e != nil {
 			e = fmt.Errorf("unable to walk content directories: %w", e)
 			logger.Error(e)
-			e = nil
 		}
 		if err != nil {
 			err = nil
@@ -742,10 +742,6 @@ func (s *Store) trashCleaner() {
 
 	for ctx.Err() == nil {
 		if e := walkDir(s.trashPath, func(subTrashPath string, dirEntry fs.DirEntry) bool {
-			if !dirEntry.IsDir() {
-				return true
-			}
-
 			err = ctx.Err()
 			if err != nil {
 				return false
@@ -753,19 +749,21 @@ func (s *Store) trashCleaner() {
 
 			logger := logger.WithFieldKeyVals("subTrashPath", subTrashPath)
 
-			err = os.RemoveAll(fsutil.ToOSPath(subTrashPath))
+			err = os.Remove(fsutil.ToOSPath(subTrashPath))
 			if err != nil {
+				if dirEntry.IsDir() && isNotEmpty(err) {
+					err = nil
+					return true
+				}
 				err = fmt.Errorf("unable to remove sub trash directory: %w", err)
 				logger.Error(err)
 				return false
 			}
-
 			return true
 
 		}); e != nil {
 			e = fmt.Errorf("unable to walk trash directories: %w", e)
 			logger.Error(e)
-			e = nil
 		}
 		if err != nil {
 			err = nil
