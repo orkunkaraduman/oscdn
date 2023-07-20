@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	ErrReleased  = errors.New("store released")
-	ErrNotExists = errors.New("not exists")
+	ErrReleased     = errors.New("store released")
+	ErrSizeExceeded = errors.New("size exceeded")
+	ErrNotExists    = errors.New("not exists")
 )
 
 type RequestError struct {

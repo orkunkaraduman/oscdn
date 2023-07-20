@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Logger        *logng.Logger
 	Path          string
+	MaxSize       int64
 	MaxAge        time.Duration
 	DefAge        time.Duration
 	TLSConfig     *tls.Config

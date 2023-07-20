@@ -480,6 +480,12 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.CreatedAt = now
 	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
 
+	if s.config.MaxSize > 0 && data.Info.Size > s.config.MaxSize {
+		err = ErrSizeExceeded
+		logger.V(2).Info(err)
+		return nil, err
+	}
+
 	expires := httphdr.Expires(resp.Header, now)
 	if expires.IsZero() {
 		age := s.config.MaxAge
@@ -524,7 +530,10 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	go func() {
 		defer s.wg.Done()
 
-		written, err := ioutil.CopyRate(data.Body(), resp.Body, s.config.DownloadBurst, s.config.DownloadRate)
+		//goland:noinspection GoUnhandledErrorResult
+		defer resp.Body.Close()
+
+		written, err := ioutil.CopyRate(data.Body(), io.LimitReader(resp.Body, data.Info.Size), s.config.DownloadBurst, s.config.DownloadRate)
 
 		_ = data.Close()
 		close(download)
