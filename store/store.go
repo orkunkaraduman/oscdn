@@ -305,28 +305,33 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 	if err != nil {
 		switch e := err.(type) {
 		case *RequestError:
-			if exists {
-				err = data.Open()
-				if err != nil {
-					logger.Error(err)
-					return
-				}
-				result.ReadCloser = s.pipeData(ctx, data, contentRangeNew, nil)
-				result.CacheStatus = CacheStatusStale
-				result.StatusCode = data.Info.StatusCode
-				result.Header = data.Header.Clone()
-				result.Size = data.Info.Size
-				result.ContentRange = contentRangeNew
-				err = nil
-				return
+			if !exists {
+				break
 			}
-			return
+			err = data.Open()
+			if err != nil {
+				logger.Error(err)
+				break
+			}
+			result.ReadCloser = s.pipeData(ctx, data, contentRangeNew, nil)
+			result.CacheStatus = CacheStatusStale
+			result.StatusCode = data.Info.StatusCode
+			result.Header = data.Header.Clone()
+			result.Size = data.Info.Size
+			result.ContentRange = contentRangeNew
+			err = nil
 		case *DynamicContentError:
 			result.CacheStatus = CacheStatusDynamic
 			result.StatusCode = e.resp.StatusCode
 			result.Header = e.resp.Header.Clone()
 			result.Size = -1
-			return
+		default:
+			switch err {
+			case ErrSizeExceeded:
+				result.StatusCode = data.Info.StatusCode
+				result.Header = data.Header.Clone()
+				result.Size = data.Info.Size
+			}
 		}
 		return
 	}
