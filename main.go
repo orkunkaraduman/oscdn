@@ -48,7 +48,7 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "")
+		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "", nil)
 		if err != nil {
 			logng.Error(err)
 			return
@@ -66,7 +66,7 @@ func main() {
 	}()
 	go func() {
 		defer wg.Done()
-		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "")
+		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "", nil)
 		if err != nil {
 			logng.Error(err)
 			return
