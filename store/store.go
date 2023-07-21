@@ -429,6 +429,7 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 			select {
 			case <-s.ctx.Done():
 				_ = pw.CloseWithError(ErrStoreReleased)
+				return
 			case <-download:
 				_, err = io.Copy(pw, r)
 				if err != nil {
@@ -437,8 +438,9 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 					default:
 						logger.Errorf("copy error: %w", err)
 					}
-					break
+					return
 				}
+				return
 			case <-time.After(25 * time.Millisecond):
 			}
 		}
