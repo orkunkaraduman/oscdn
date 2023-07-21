@@ -388,6 +388,16 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 		//goland:noinspection GoUnhandledErrorResult
 		defer pw.Close()
 
+		end := make(chan struct{})
+		defer close(end)
+		go func() {
+			select {
+			case <-s.ctx.Done():
+				_ = pr.Close()
+			case <-end:
+			}
+		}()
+
 		f := data.Body()
 		r := io.Reader(f)
 		if contentRange != nil {
@@ -434,7 +444,7 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 		}
 	}()
 
-	return pr
+	return &struct{ io.ReadCloser }{pr}
 }
 
 func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (download chan struct{}, err error) {
