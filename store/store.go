@@ -355,6 +355,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 
 func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentRange, download chan struct{}) io.ReadCloser {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
+	_ = logger
 
 	if contentRange != nil {
 		if download != nil {
@@ -383,6 +384,9 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 		defer s.wg.Done()
 
 		var err error
+
+		logger, _ := s.ctx.Value("logger").(*logng.Logger)
+
 		//goland:noinspection GoUnhandledErrorResult
 		defer data.Close()
 
@@ -537,6 +541,8 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+
+		logger, _ := s.ctx.Value("logger").(*logng.Logger)
 
 		//goland:noinspection GoUnhandledErrorResult
 		defer resp.Body.Close()
