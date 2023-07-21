@@ -15,6 +15,8 @@ import (
 )
 
 func main() {
+	logng.SetVerbose(2)
+	logng.SetStackTraceSeverity(logng.SeverityWarning)
 	logng.Info("aa")
 	s, err := store.New(store.Config{
 		Logger:        logng.DefaultLogger(),
