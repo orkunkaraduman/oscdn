@@ -15,7 +15,7 @@ var (
 )
 
 type RequestError struct {
-	error
+	error error
 }
 
 func (e *RequestError) Error() string {
@@ -26,18 +26,18 @@ func (e *RequestError) Unwrap() error {
 	return e.error
 }
 
-type SizeExceededError struct {
-	Size int64
-}
-
-func (e *SizeExceededError) Error() string {
-	return fmt.Errorf("size exceeded %d", e.Size).Error()
-}
-
 type DynamicContentError struct {
 	resp *http.Response
 }
 
 func (e *DynamicContentError) Error() string {
 	return fmt.Errorf("dynamic content").Error()
+}
+
+type SizeExceededError struct {
+	Size int64
+}
+
+func (e *SizeExceededError) Error() string {
+	return fmt.Errorf("size exceeded %d", e.Size).Error()
 }

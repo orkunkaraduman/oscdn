@@ -469,7 +469,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		err = &RequestError{error: err}
-		logger.V(2).Warning(err)
+		logger.V(2).Error(err)
 		return nil, err
 	}
 	//goland:noinspection GoUnhandledErrorResult
@@ -494,7 +494,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 	if s.config.MaxSize > 0 && data.Info.Size > s.config.MaxSize {
 		err = &SizeExceededError{Size: data.Info.Size}
-		logger.V(2).Warning(err)
+		logger.V(2).Error(err)
 		return nil, err
 	}
 
@@ -522,7 +522,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		!data.Info.ExpiresAt.After(now)
 	if dynamic {
 		err = &DynamicContentError{resp: resp}
-		logger.V(2).Warning(err)
+		logger.V(2).Error(err)
 		return nil, err
 	}
 
@@ -574,7 +574,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		}
 
 		if err != nil {
-			logger.V(2).Warning(err)
+			logger.V(2).Error(err)
 			if download == downloadNew {
 				err = s.moveToTrash(data.Path)
 				if err != nil {
