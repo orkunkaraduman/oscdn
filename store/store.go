@@ -385,16 +385,15 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 		var err error
 		//goland:noinspection GoUnhandledErrorResult
 		defer data.Close()
-		//goland:noinspection GoUnhandledErrorResult
-		defer pw.Close()
 
 		end := make(chan struct{})
 		defer close(end)
 		go func() {
 			select {
 			case <-s.ctx.Done():
-				_ = pr.Close()
+				_ = pw.CloseWithError(ErrStoreReleased)
 			case <-end:
+				_ = pw.Close()
 			}
 		}()
 
@@ -428,7 +427,6 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 			}
 			select {
 			case <-s.ctx.Done():
-				_ = pw.CloseWithError(ErrStoreReleased)
 				return
 			case <-download:
 				_, err = io.Copy(pw, r)
