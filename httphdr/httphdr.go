@@ -5,19 +5,6 @@ import (
 	"time"
 )
 
-func PutHTTPHeaders(dst http.Header, src http.Header, keys ...string) {
-	src = src.Clone()
-	if len(keys) <= 0 {
-		for key := range src {
-			dst[key] = src[key]
-		}
-		return
-	}
-	for _, key := range keys {
-		dst[key] = src[key]
-	}
-}
-
 func Expires(header http.Header, now time.Time) (expires time.Time) {
 	hasCacheControl := false
 	if h := header.Get("Cache-Control"); h != "" {
