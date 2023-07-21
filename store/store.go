@@ -266,6 +266,8 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.CacheStatus = CacheStatusUpdating
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
+			result.CreatedAt = data.Info.CreatedAt
+			result.ExpiresAt = data.Info.ExpiresAt
 			result.Size = data.Info.Size
 			return
 		}
@@ -294,6 +296,8 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.CacheStatus = CacheStatusHit
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
+			result.CreatedAt = data.Info.CreatedAt
+			result.ExpiresAt = data.Info.ExpiresAt
 			result.Size = data.Info.Size
 			result.ContentRange = contentRangeNew
 			return
@@ -317,6 +321,8 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.CacheStatus = CacheStatusStale
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
+			result.CreatedAt = data.Info.CreatedAt
+			result.ExpiresAt = data.Info.ExpiresAt
 			result.Size = data.Info.Size
 			result.ContentRange = contentRangeNew
 			err = nil
@@ -324,10 +330,14 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 			result.CacheStatus = CacheStatusDynamic
 			result.StatusCode = e.resp.StatusCode
 			result.Header = e.resp.Header.Clone()
+			result.CreatedAt = data.Info.CreatedAt
+			result.ExpiresAt = data.Info.ExpiresAt
 			result.Size = -1
 		case *SizeExceededError:
 			result.StatusCode = data.Info.StatusCode
 			result.Header = data.Header.Clone()
+			result.CreatedAt = data.Info.CreatedAt
+			result.ExpiresAt = data.Info.ExpiresAt
 			result.Size = data.Info.Size
 		}
 		return
@@ -349,6 +359,8 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 	}
 	result.StatusCode = data.Info.StatusCode
 	result.Header = data.Header.Clone()
+	result.CreatedAt = data.Info.CreatedAt
+	result.ExpiresAt = data.Info.ExpiresAt
 	result.Size = data.Info.Size
 	return
 }

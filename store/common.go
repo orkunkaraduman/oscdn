@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"time"
 )
 
 var (
@@ -56,6 +57,8 @@ type GetResult struct {
 	CacheStatus  CacheStatus
 	StatusCode   int
 	Header       http.Header
+	CreatedAt    time.Time
+	ExpiresAt    time.Time
 	Size         int64
 	ContentRange *ContentRange
 }
