@@ -514,11 +514,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 	expires := httphdr.Expires(resp.Header, now)
 	if expires.IsZero() {
-		age := s.config.MaxAge
 		if s.config.DefAge > 0 {
-			age = s.config.DefAge
+			data.Info.ExpiresAt = now.Add(s.config.DefAge)
 		}
-		data.Info.ExpiresAt = now.Add(age)
 	} else {
 		if expires.Sub(data.Info.ExpiresAt) <= 0 {
 			data.Info.ExpiresAt = expires
