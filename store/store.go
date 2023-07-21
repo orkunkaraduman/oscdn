@@ -468,7 +468,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		err = &RequestError{fmt.Errorf("request error: %w", err)}
+		err = &RequestError{error: err}
 		logger.V(2).Warning(err)
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
 
 	if s.config.MaxSize > 0 && data.Info.Size > s.config.MaxSize {
-		err = &SizeExceededError{error: errors.New("size exceeded"), Size: data.Info.Size}
+		err = &SizeExceededError{Size: data.Info.Size}
 		logger.V(2).Warning(err)
 		return nil, err
 	}
@@ -521,7 +521,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
 		!data.Info.ExpiresAt.After(now)
 	if dynamic {
-		err = &DynamicContentError{error: errors.New("dynamic content"), resp: resp}
+		err = &DynamicContentError{resp: resp}
 		logger.V(2).Warning(err)
 		return nil, err
 	}
