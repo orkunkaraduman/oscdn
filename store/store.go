@@ -520,7 +520,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		}
 		data.Info.ExpiresAt = now.Add(age)
 	} else {
-		if expires.Sub(data.Info.ExpiresAt) < 0 {
+		if expires.Sub(data.Info.ExpiresAt) <= 0 {
 			data.Info.ExpiresAt = expires
 		}
 	}
@@ -562,6 +562,10 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		defer resp.Body.Close()
 
 		written, err := ioutil.CopyRate(data.Body(), io.LimitReader(resp.Body, data.Info.Size), s.config.DownloadBurst, s.config.DownloadRate)
+		if err != nil {
+			err = fmt.Errorf("content download error: %w", err)
+			logger.V(2).Error(err)
+		}
 
 		_ = data.Close()
 		close(download)
@@ -585,18 +589,15 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 		if err == nil && written != data.Info.Size {
 			err = errors.New("different content size")
+			logger.V(2).Error(err)
 		}
 
-		if err != nil {
-			logger.V(2).Error(err)
-			if download == downloadNew {
-				err = s.moveToTrash(data.Path)
-				if err != nil {
-					if !os.IsNotExist(err) {
-						err = fmt.Errorf("unable to move incomplete data to trash: %w", err)
-						logger.Error(err)
-					}
-					err = nil
+		if err != nil && download == downloadNew {
+			err = s.moveToTrash(data.Path)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					err = fmt.Errorf("unable to move incomplete data to trash: %w", err)
+					logger.Error(err)
 				}
 			}
 		}
