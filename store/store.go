@@ -417,7 +417,6 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 				return
 			}
 			select {
-			case <-ctx.Done():
 			case <-s.ctx.Done():
 				_ = pw.CloseWithError(ErrStoreReleased)
 			case <-download:
