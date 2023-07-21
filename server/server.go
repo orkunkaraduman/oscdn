@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/valyala/tcplisten"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+
+	"github.com/orkunkaraduman/oscdn/store"
 )
 
 type Server struct {
@@ -101,11 +104,89 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 	return
 }
 
-func (s *Server) httpHandler(rw http.ResponseWriter, req *http.Request) {
+func (s *Server) httpHandler(w http.ResponseWriter, req *http.Request) {
+	var err error
+
 	s.wg.Add(1)
 	defer s.wg.Done()
 	if s.ctx.Err() != nil {
 		return
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			go func() {
+				panic(p)
+			}()
+		}
+	}()
+
+	logger := s.config.Logger.WithFieldKeyVals("scheme", req.URL.Scheme,
+		"host", req.URL.Host, "requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr)
+	ctx := context.WithValue(context.Background(), "logger", logger)
+
+	switch req.Method {
+	case http.MethodHead:
+	case http.MethodGet:
+	default:
+		err = fmt.Errorf("method %s not allowed", req.Method)
+		logger.V(2).Error(err)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	contentRange, err := getContentRange(req.Header)
+	if err != nil {
+		logger.V(2).Error(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	getResult, err := s.config.Store.Get(ctx, req.URL.String(), "", contentRange)
+	if err != nil {
+		if xcontext.IsContextError(err) {
+			w.WriteHeader(http.StatusGatewayTimeout)
+			return
+		}
+		switch err.(type) {
+		case *store.RequestError:
+			w.WriteHeader(http.StatusBadGateway)
+		case *store.DynamicContentError:
+			w.WriteHeader(http.StatusBadGateway)
+		case *store.SizeExceededError:
+			w.WriteHeader(http.StatusBadGateway)
+		}
+		return
+	}
+
+	w.Header().Set("X-Cache-Status", getResult.CacheStatus.String())
+	for _, key := range []string{
+		"Content-Type",
+		"Date",
+		"Etag",
+		"Last-Modified",
+	} {
+		for _, val := range getResult.Header.Values(key) {
+			w.Header().Add(key, val)
+		}
+	}
+	w.Header().Set("Expires", getResult.Expires.UTC().Format(time.RFC1123))
+	if getResult.StatusCode != http.StatusOK || getResult.ContentRange == nil {
+		w.Header().Set("Content-Length", strconv.FormatInt(getResult.Size, 10))
+		w.WriteHeader(getResult.StatusCode)
+	} else {
+		size := getResult.ContentRange.End - getResult.ContentRange.Start
+		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d",
+			getResult.ContentRange.Start, getResult.ContentRange.End, size))
+		w.WriteHeader(http.StatusPartialContent)
+	}
+
+	var written int64
+	switch req.Method {
+	case http.MethodHead:
+	case http.MethodGet:
+		written, err = io.Copy(w, getResult)
 	}
 
 }
