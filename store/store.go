@@ -199,7 +199,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 
 	select {
 	case <-s.ctx.Done():
-		err = ErrReleased
+		err = ErrStoreReleased
 		return
 	default:
 	}
@@ -418,10 +418,8 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 			}
 			select {
 			case <-ctx.Done():
-				return
 			case <-s.ctx.Done():
-				_ = pw.CloseWithError(ErrReleased)
-				return
+				_ = pw.CloseWithError(ErrStoreReleased)
 			case <-download:
 				_, err = io.Copy(pw, r)
 				if err != nil {
@@ -430,9 +428,8 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 					default:
 						logger.Errorf("copy error: %w", err)
 					}
-					return
+					break
 				}
-				return
 			case <-time.After(25 * time.Millisecond):
 			}
 		}
@@ -593,7 +590,7 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 
 	select {
 	case <-s.ctx.Done():
-		err = ErrReleased
+		err = ErrStoreReleased
 		return
 	default:
 	}
@@ -644,7 +641,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 
 	select {
 	case <-s.ctx.Done():
-		err = ErrReleased
+		err = ErrStoreReleased
 		return
 	default:
 	}
