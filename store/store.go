@@ -367,7 +367,9 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 		if contentRange.Start > data.Info.Size {
 			contentRange.Start = data.Info.Size
 		}
-		if contentRange.End >= 0 {
+		if contentRange.End < 0 {
+			contentRange.End = data.Info.Size
+		} else {
 			if contentRange.End > data.Info.Size {
 				contentRange.End = data.Info.Size
 			}
