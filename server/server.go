@@ -170,23 +170,27 @@ func (s *Server) httpHandler(w http.ResponseWriter, req *http.Request) {
 			w.Header().Add(key, val)
 		}
 	}
-	w.Header().Set("Expires", getResult.Expires.UTC().Format(time.RFC1123))
+	w.Header().Set("Expires", getResult.ExpiresAt.Format(time.RFC1123))
 	if getResult.StatusCode != http.StatusOK || getResult.ContentRange == nil {
 		w.Header().Set("Content-Length", strconv.FormatInt(getResult.Size, 10))
 		w.WriteHeader(getResult.StatusCode)
 	} else {
-		size := getResult.ContentRange.End - getResult.ContentRange.Start
-		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+		contentLength := getResult.ContentRange.End - getResult.ContentRange.Start
+		w.Header().Set("Content-Length", strconv.FormatInt(contentLength, 10))
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d",
-			getResult.ContentRange.Start, getResult.ContentRange.End, size))
+			getResult.ContentRange.Start, getResult.ContentRange.End, contentLength))
 		w.WriteHeader(http.StatusPartialContent)
 	}
 
-	var written int64
 	switch req.Method {
 	case http.MethodHead:
+		err = nil
 	case http.MethodGet:
-		written, err = io.Copy(w, getResult)
+		_, err = io.Copy(w, getResult)
 	}
-
+	if err != nil {
+		err = fmt.Errorf("content upload error: %w", err)
+		logger.V(2).Error(err)
+		return
+	}
 }
