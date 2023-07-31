@@ -495,6 +495,17 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 	now := time.Now()
 
+	hostConfig := s.config.DefaultHostConfig
+	if s.config.GetHostConfig != nil {
+		hostConfig1 := s.config.GetHostConfig(baseURL.Scheme, baseURL.Host)
+		if hostConfig1 != nil {
+			hostConfig = hostConfig1
+		}
+	}
+	if hostConfig == nil {
+		hostConfig = new(HostConfig)
+	}
+
 	data := &Data{
 		Path: s.getDataPath(baseURL, keyURL),
 	}
@@ -504,7 +515,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.StatusCode = resp.StatusCode
 	data.Info.Size = resp.ContentLength
 	data.Info.CreatedAt = now
-	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
+	data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
 
 	err = s.moveToTrash(data.Path)
 	if err != nil && !os.IsNotExist(err) {
@@ -513,7 +524,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		return nil, err
 	}
 
-	if s.config.MaxSize > 0 && data.Info.Size > s.config.MaxSize {
+	if hostConfig.MaxSize > 0 && data.Info.Size > hostConfig.MaxSize {
 		err = &SizeExceededError{Size: data.Info.Size}
 		logger.V(2).Error(err)
 		return nil, err
@@ -552,7 +563,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		//goland:noinspection GoUnhandledErrorResult
 		defer resp.Body.Close()
 
-		written, err := ioutil.CopyRate(data.Body(), io.LimitReader(resp.Body, data.Info.Size), s.config.DownloadBurst, s.config.DownloadRate)
+		written, err := ioutil.CopyRate(data.Body(), io.LimitReader(resp.Body, data.Info.Size), hostConfig.DownloadBurst, hostConfig.DownloadRate)
 		if err != nil {
 			err = fmt.Errorf("content download error: %w", err)
 			logger.V(2).Error(err)

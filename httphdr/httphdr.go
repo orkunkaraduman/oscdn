@@ -25,5 +25,9 @@ func Expires(header http.Header, now time.Time) (expires time.Time) {
 		expires, _ = time.Parse(time.RFC1123, h)
 	}
 
+	if zeroTime := *new(time.Time); expires.Before(zeroTime) {
+		expires = zeroTime
+	}
+
 	return
 }
