@@ -82,11 +82,13 @@ func (a *HttpApp) Run(ctx xcontext.CancelableContext) {
 		if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
 			a.logger.Errorf("http serve error: %w", e)
 			ctx.Cancel()
+			return
 		}
 	} else {
 		if e := a.httpSrv.ServeTLS(a.listener, "", ""); e != nil && e != http.ErrServerClosed {
 			a.logger.Errorf("https serve error: %w", e)
 			ctx.Cancel()
+			return
 		}
 	}
 }

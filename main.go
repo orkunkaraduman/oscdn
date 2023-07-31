@@ -13,7 +13,9 @@ import (
 	"github.com/goinsane/logng"
 
 	"github.com/orkunkaraduman/oscdn/apps"
+	"github.com/orkunkaraduman/oscdn/cdn"
 	"github.com/orkunkaraduman/oscdn/internal/flags"
+	"github.com/orkunkaraduman/oscdn/store"
 )
 
 func main() {
@@ -62,7 +64,33 @@ func main() {
 
 	logng.Info("starting.")
 
+	s, err := store.New(store.Config{
+		Logger:            logng.WithFieldKeyVals("logger", "store"),
+		Path:              flags.Flags.StorePath,
+		TLSConfig:         nil,
+		MaxIdleConns:      100,
+		UserAgent:         "",
+		DefaultHostConfig: nil,
+		GetHostConfig:     nil,
+	})
+	if err != nil {
+		logng.Error(err)
+	}
+
+	h := &cdn.Handler{
+		Logger:    logng.WithFieldKeyVals("logger", "handler"),
+		Context:   nil,
+		Store:     s,
+		GetOrigin: nil,
+	}
+
 	if !application.RunAll(appCtx, []application.Application{
+		&apps.HttpApp{
+			Listen:        flags.Flags.Http,
+			ListenBacklog: 0,
+			Handler:       h,
+			TLSConfig:     nil,
+		},
 		&apps.MgmtApp{
 			Listen: flags.Flags.Mgmt,
 		},

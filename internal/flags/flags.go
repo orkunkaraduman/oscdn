@@ -9,6 +9,7 @@ type _Flags struct {
 	Debug            bool          `name:"d"`
 	TerminateTimeout time.Duration `default:"2m"`
 	QuitTimeout      time.Duration `default:"3m"`
+	StorePath        string        `default:"."`
 	Http             string        `default:":8080"`
 	Https            string        `default:":8443"`
 	Mgmt             string        `default:":9080"`
