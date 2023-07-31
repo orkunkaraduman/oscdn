@@ -125,6 +125,13 @@ func (s *Server) httpHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
+	switch req.URL.Scheme {
+	case "http":
+		req.URL.Host = strings.TrimSuffix(req.URL.Host, ":80")
+	case "https":
+		req.URL.Host = strings.TrimSuffix(req.URL.Host, ":443")
+	}
+
 	logger := s.config.Logger.WithFieldKeyVals("scheme", req.URL.Scheme,
 		"host", req.URL.Host, "requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr)
 	ctx := context.WithValue(context.Background(), "logger", logger)
@@ -148,15 +155,7 @@ func (s *Server) httpHandler(w http.ResponseWriter, req *http.Request) {
 
 	var origin *Origin
 	if s.config.GetOrigin != nil {
-		scheme := req.URL.Scheme
-		host := req.URL.Host
-		switch scheme {
-		case "http":
-			host = strings.TrimSuffix(host, ":80")
-		case "https":
-			host = strings.TrimSuffix(host, ":443")
-		}
-		origin = s.config.GetOrigin(scheme, host)
+		origin = s.config.GetOrigin(req.URL.Scheme, req.URL.Host)
 		if origin == nil {
 			err = errors.New("unknown origin")
 			logger.V(2).Error(err)
