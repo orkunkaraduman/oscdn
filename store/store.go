@@ -506,28 +506,21 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.CreatedAt = now
 	data.Info.ExpiresAt = now.Add(s.config.MaxAge)
 
+	err = s.moveToTrash(data.Path)
+	if err != nil && !os.IsNotExist(err) {
+		err = fmt.Errorf("unable to move expired data to trash: %w", err)
+		logger.Error(err)
+		return nil, err
+	}
+
 	if s.config.MaxSize > 0 && data.Info.Size > s.config.MaxSize {
 		err = &SizeExceededError{Size: data.Info.Size}
 		logger.V(2).Error(err)
 		return nil, err
 	}
 
-	expires := httphdr.Expires(resp.Header, now)
-	if expires.IsZero() {
-		if s.config.DefAge > 0 {
-			data.Info.ExpiresAt = now.Add(s.config.DefAge)
-		}
-	} else {
-		if expires.Sub(data.Info.ExpiresAt) <= 0 {
-			data.Info.ExpiresAt = expires
-		}
-	}
-
-	err = s.moveToTrash(data.Path)
-	if err != nil && !os.IsNotExist(err) {
-		err = fmt.Errorf("unable to move expired data to trash: %w", err)
-		logger.Error(err)
-		return nil, err
+	if expires := httphdr.Expires(resp.Header, now); !expires.After(data.Info.ExpiresAt) {
+		data.Info.ExpiresAt = expires
 	}
 
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||

@@ -1,17 +1,32 @@
 package store
 
 import (
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/goinsane/logng"
 )
 
 var (
 	DomainRgx = regexp.MustCompile(`^([A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,6}$`)
 	HostRgx   = regexp.MustCompile(`^([A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,6}(:[0-9]{1,5})?$`)
 )
+
+type Config struct {
+	Logger        *logng.Logger
+	Path          string
+	MaxSize       int64
+	MaxAge        time.Duration
+	TLSConfig     *tls.Config
+	MaxIdleConns  int
+	UserAgent     string
+	DownloadBurst int64
+	DownloadRate  int64
+}
 
 type CacheStatus int
 
