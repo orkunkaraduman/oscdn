@@ -12,6 +12,7 @@ import (
 	"github.com/goinsane/flagconf"
 	"github.com/goinsane/logng"
 
+	"github.com/orkunkaraduman/oscdn/apps"
 	"github.com/orkunkaraduman/oscdn/internal/flags"
 )
 
@@ -62,7 +63,7 @@ func main() {
 	logng.Info("starting.")
 
 	if !application.RunAll(appCtx, []application.Application{
-		&MgmtApp{
+		&apps.MgmtApp{
 			Listen: flags.Flags.Mgmt,
 		},
 	}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {

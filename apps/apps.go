@@ -1,4 +1,4 @@
-package main
+package apps
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"github.com/goinsane/logng"
 	"github.com/goinsane/xcontext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/valyala/tcplisten"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
@@ -21,9 +22,10 @@ import (
 )
 
 type HttpApp struct {
-	Listen    string
-	Handler   *cdn.Handler
-	TLSConfig *tls.Config
+	Listen        string
+	ListenBacklog int
+	Handler       *cdn.Handler
+	TLSConfig     *tls.Config
 
 	logger *logng.Logger
 	wg     sync.WaitGroup
@@ -37,7 +39,16 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 
 	a.logger = logng.WithFieldKeyVals("app", "http", "listen", a.Listen)
 
-	a.listener, err = net.Listen("tcp4", a.Listen)
+	if a.ListenBacklog > 0 {
+		a.listener, err = (&tcplisten.Config{
+			ReusePort:   true,
+			DeferAccept: false,
+			FastOpen:    true,
+			Backlog:     a.ListenBacklog,
+		}).NewListener("tcp4", a.Listen)
+	} else {
+		a.listener, err = net.Listen("tcp4", a.Listen)
+	}
 	if err != nil {
 		a.logger.Errorf("listen error: %w", err)
 		ctx.Cancel()
@@ -70,10 +81,12 @@ func (a *HttpApp) Run(ctx xcontext.CancelableContext) {
 	if a.httpSrv.TLSConfig == nil {
 		if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
 			a.logger.Errorf("http serve error: %w", e)
+			ctx.Cancel()
 		}
 	} else {
 		if e := a.httpSrv.ServeTLS(a.listener, "", ""); e != nil && e != http.ErrServerClosed {
 			a.logger.Errorf("https serve error: %w", e)
+			ctx.Cancel()
 		}
 	}
 }
