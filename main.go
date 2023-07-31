@@ -86,6 +86,7 @@ func main() {
 
 	if !application.RunAll(appCtx, []application.Application{
 		&apps.HttpApp{
+			Logger:        logng.WithFieldKeyVals("logger", "http app"),
 			Listen:        flags.Flags.Http,
 			ListenBacklog: 0,
 			Handler:       h,

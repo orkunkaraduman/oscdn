@@ -22,6 +22,7 @@ import (
 )
 
 type HttpApp struct {
+	Logger        *logng.Logger
 	Listen        string
 	ListenBacklog int
 	Handler       *cdn.Handler
@@ -37,7 +38,7 @@ type HttpApp struct {
 func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	var err error
 
-	a.logger = logng.WithFieldKeyVals("app", "http", "listen", a.Listen)
+	a.logger = a.Logger.WithFieldKeyVals("listen", a.Listen)
 
 	if a.ListenBacklog > 0 {
 		a.listener, err = (&tcplisten.Config{
@@ -112,6 +113,7 @@ func (a *HttpApp) Stop() {
 }
 
 type MgmtApp struct {
+	Logger *logng.Logger
 	Listen string
 
 	logger *logng.Logger
@@ -125,7 +127,7 @@ type MgmtApp struct {
 func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	var err error
 
-	a.logger = logng.WithFieldKeyVals("app", "mgmt", "listen", a.Listen)
+	a.logger = a.Logger.WithFieldKeyVals("listen", a.Listen)
 
 	a.listener, err = net.Listen("tcp4", a.Listen)
 	if err != nil {
