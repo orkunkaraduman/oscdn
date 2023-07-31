@@ -75,6 +75,7 @@ func main() {
 	})
 	if err != nil {
 		logng.Error(err)
+		return
 	}
 
 	h := &cdn.Handler{
