@@ -174,5 +174,5 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) Wait() {
-	h.Wait()
+	h.wg.Wait()
 }
