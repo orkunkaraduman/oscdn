@@ -2,12 +2,15 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/orkunkaraduman/oscdn/ioutil"
 	"github.com/orkunkaraduman/oscdn/store"
 )
 
@@ -142,7 +146,41 @@ func (s *Server) httpHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	getResult, err := s.config.Store.Get(ctx, req.URL.String(), "", contentRange)
+	var origin *Origin
+	if s.config.GetOrigin != nil {
+		scheme := req.URL.Scheme
+		host := req.URL.Host
+		switch scheme {
+		case "http":
+			host = strings.TrimSuffix(host, ":80")
+		case "https":
+			host = strings.TrimSuffix(host, ":443")
+		}
+		origin = s.config.GetOrigin(scheme, host)
+		if origin == nil {
+			err = errors.New("unknown origin")
+			logger.V(2).Error(err)
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+	}
+
+	rawURL := req.URL.String()
+	host := ""
+
+	if origin != nil {
+		rawURL = (&url.URL{
+			Scheme:   origin.Scheme,
+			Host:     origin.Host,
+			Path:     req.URL.Path,
+			RawQuery: req.URL.RawQuery,
+		}).String()
+		if origin.HostOverride {
+			host = req.URL.Host
+		}
+	}
+
+	getResult, err := s.config.Store.Get(ctx, rawURL, host, contentRange)
 	if err != nil {
 		if xcontext.IsContextError(err) {
 			w.WriteHeader(http.StatusGatewayTimeout)
@@ -186,7 +224,13 @@ func (s *Server) httpHandler(w http.ResponseWriter, req *http.Request) {
 	case http.MethodHead:
 		err = nil
 	case http.MethodGet:
-		_, err = io.Copy(w, getResult)
+		var uploadBurst int64
+		var uploadRate int64
+		if origin != nil {
+			uploadBurst = origin.UploadBurst
+			uploadRate = origin.UploadRate
+		}
+		_, err = ioutil.CopyRate(w, getResult, uploadBurst, uploadRate)
 	}
 	if err != nil {
 		err = fmt.Errorf("content upload error: %w", err)
