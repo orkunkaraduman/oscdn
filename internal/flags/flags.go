@@ -1,4 +1,4 @@
-package common
+package flags
 
 import "time"
 
@@ -9,9 +9,9 @@ type _Flags struct {
 	Debug            bool          `name:"d"`
 	TerminateTimeout time.Duration `default:"2m"`
 	QuitTimeout      time.Duration `default:"3m"`
-	Http             string        `default:":80"`
-	Https            string        `default:":443"`
-	Mgmt             string        `default:":8080"`
+	Http             string        `default:":8080"`
+	Https            string        `default:":8443"`
+	Mgmt             string        `default:":9080"`
 }
 
 func (f *_Flags) Validate() error {

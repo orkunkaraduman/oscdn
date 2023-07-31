@@ -1,6 +1,7 @@
 package cdn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/goinsane/logng"
 	"github.com/goinsane/xcontext"
-	"golang.org/x/net/context"
 
 	"github.com/orkunkaraduman/oscdn/ioutil"
 	"github.com/orkunkaraduman/oscdn/store"
@@ -27,7 +27,7 @@ type Handler struct {
 	wg sync.WaitGroup
 }
 
-func (h *Handler) Serve(w http.ResponseWriter, req *http.Request) {
+func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var err error
 
 	defer func() {

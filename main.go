@@ -2,88 +2,72 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"io"
+	"flag"
+	"os"
 	"os/signal"
-	"sync"
 	"syscall"
-	"time"
 
+	"github.com/goinsane/application"
+	"github.com/goinsane/flagbind"
+	"github.com/goinsane/flagconf"
 	"github.com/goinsane/logng"
 
-	"github.com/orkunkaraduman/oscdn/store"
+	"github.com/orkunkaraduman/oscdn/internal/flags"
 )
 
 func main() {
-	logng.SetVerbose(2)
-	logng.SetStackTraceSeverity(logng.SeverityWarning)
-	logng.Info("aa")
-	s, err := store.New(store.Config{
-		Logger:        logng.DefaultLogger(),
-		Path:          "/Users/orkun/narvi",
-		MaxAge:        120 * time.Second,
-		DefAge:        60 * time.Second,
-		TLSConfig:     nil,
-		UserAgent:     "oscdn",
-		MaxIdleConns:  100,
-		DownloadBurst: 4,
-		DownloadRate:  2048,
-	})
+	var err error
+
+	appName := "oscdn"
+
+	logng.SetSeverity(logng.SeverityInfo)
+	logng.SetVerbose(0)
+	logng.SetPrintSeverity(logng.SeverityInfo)
+	logng.SetStackTraceSeverity(logng.SeverityError)
+	logng.SetTextOutputWriter(os.Stdout)
+	logng.SetTextOutputFlags(logng.TextOutputFlagDefault | logng.TextOutputFlagLongFunc)
+	logng.SetOutput(logng.NewJSONOutput(os.Stdout, logng.JSONOutputFlagDefault))
+	flagSet := flag.NewFlagSet(appName, flag.ExitOnError)
+	flagbind.Bind(flagSet, flags.Flags)
+	if confPath := os.Getenv("OSCDN_CONF"); confPath != "" {
+		err = flagconf.ParseFile(flagSet, confPath, os.Args[1:])
+		if err != nil {
+			logng.Fatal(err)
+			return
+		}
+	} else {
+		err = flagSet.Parse(os.Args[1:])
+		if err != nil {
+			return
+		}
+	}
+	err = flags.Flags.Validate()
 	if err != nil {
-		panic(err)
+		logng.Fatal("unable to validate flags")
+		return
 	}
 
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	logng.SetVerbose(logng.Verbose(flags.Flags.Verbose))
+	if flags.Flags.Verbose > 0 {
+		logng.SetStackTraceSeverity(logng.SeverityWarning)
+	}
+	if flags.Flags.Debug {
+		logng.SetSeverity(logng.SeverityDebug)
+		logng.SetStackTraceSeverity(logng.SeverityDebug)
+	}
 
-	//fmt.Println(s.Purge(context.Background(), "https://speed.hetzner.de/100MB.bin", ""))
-	//fmt.Println(s.PurgeHost(context.Background(), "speed.hetzner.de"))
-	//return
+	appCtx, appCtxCancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
+	defer appCtxCancel()
 
-	var wg sync.WaitGroup
-	wg.Add(3)
+	logng.Info("starting.")
 
-	go func() {
-		defer wg.Done()
-		<-ctx.Done()
-		_ = s.Release()
-	}()
+	if !application.RunAll(appCtx, []application.Application{
+		&MgmtApp{
+			Listen: flags.Flags.Mgmt,
+		},
+	}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
+		logng.Error("quit timeout")
+	}
+	logng.Info("stopped.")
 
-	go func() {
-		defer wg.Done()
-		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "", nil)
-		if err != nil {
-			logng.Error(err)
-			return
-		}
-		//goland:noinspection GoUnhandledErrorResult
-		defer result.Close()
-		fmt.Println(result.StatusCode)
-		fmt.Printf("%+v\n", result.Header)
-		written, err := io.Copy(io.Discard, result)
-		if err != nil {
-			logng.Error(err)
-			return
-		}
-		fmt.Println(written)
-	}()
-	go func() {
-		defer wg.Done()
-		result, err := s.Get(context.Background(), "https://speed.hetzner.de/100MB.bin", "", nil)
-		if err != nil {
-			logng.Error(err)
-			return
-		}
-		//goland:noinspection GoUnhandledErrorResult
-		defer result.Close()
-		fmt.Println(result.StatusCode)
-		fmt.Printf("%+v\n", result.Header)
-		written, err := io.Copy(io.Discard, result)
-		if err != nil {
-			logng.Error(err)
-			return
-		}
-		fmt.Println(written)
-	}()
-
-	wg.Wait()
 }
