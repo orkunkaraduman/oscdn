@@ -90,15 +90,15 @@ func main() {
 			Logger:        logng.WithFieldKeyVals("logger", "http app"),
 			Listen:        flags.Flags.Http,
 			ListenBacklog: 0,
-			Handler:       h,
 			TLSConfig:     nil,
+			Handler:       h,
 		},
 		&apps.MgmtApp{
-			Listen: flags.Flags.Mgmt,
+			Listen:  flags.Flags.Mgmt,
+			Handler: h,
 		},
 	}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
 		logng.Error("quit timeout")
 	}
 	logng.Info("stopped.")
-
 }
