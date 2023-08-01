@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/orkunkaraduman/oscdn/apps"
 	"github.com/orkunkaraduman/oscdn/cdn"
+	"github.com/orkunkaraduman/oscdn/httputil"
 	"github.com/orkunkaraduman/oscdn/internal/config"
 	"github.com/orkunkaraduman/oscdn/internal/flags"
 	"github.com/orkunkaraduman/oscdn/store"
@@ -67,15 +69,20 @@ func main() {
 
 	logng.Info("starting.")
 
-	c, err := config.FromFile(flags.Flags.Config)
+	_config, err := config.FromFile(flags.Flags.Config)
 	if err != nil {
 		err = fmt.Errorf("config load error: %w", err)
 		logng.Error(err)
 		return
 	}
-	err = c.Validate()
+	err = _config.Validate()
 	if err != nil {
 		err = fmt.Errorf("config validate error: %w", err)
+		logng.Error(err)
+		return
+	}
+	certs, err := _config.TLSCertificates()
+	if err != nil {
 		logng.Error(err)
 		return
 	}
@@ -93,7 +100,7 @@ func main() {
 			DownloadRate:  0,
 		},
 		GetHostConfig: func(scheme, host string) *store.HostConfig {
-			o, ok := c.Origins[host]
+			o, ok := _config.Origins[host]
 			if !ok {
 				return nil
 			}
@@ -119,26 +126,27 @@ func main() {
 		Context: nil,
 		Store:   _store,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
-			h, ok := c.Hosts[host]
+			domain, _, _ := httputil.SplitHostPort(host)
+			d, ok := _config.Domains[domain]
 			if !ok {
 				return nil
 			}
-			o, ok := c.Origins[h.Origin]
+			o, ok := _config.Origins[d.Origin]
 			if !ok {
 				return nil
 			}
 			result := &cdn.HostConfig{
-				HostOverride:  h.HostOverride,
-				IgnoreQuery:   h.IgnoreQuery,
-				HttpsRedirect: h.HttpsRedirect,
-				UploadBurst:   h.UploadBurst,
-				UploadRate:    h.UploadRate,
+				HostOverride:  d.HostOverride,
+				IgnoreQuery:   d.IgnoreQuery,
+				HttpsRedirect: d.HttpsRedirect,
+				UploadBurst:   d.UploadBurst,
+				UploadRate:    d.UploadRate,
 			}
 			result.Origin.Scheme = "http"
 			if o.UseHttps {
 				result.Origin.Scheme = "https"
 			}
-			result.Origin.Host = h.Origin
+			result.Origin.Host = d.Origin
 			return result
 		},
 	}
@@ -151,13 +159,25 @@ func main() {
 		Handler:       handler,
 	}
 
+	httpsApp := &apps.HttpApp{
+		Logger:        logng.WithFieldKeyVals("logger", "https app"),
+		Listen:        flags.Flags.Https,
+		ListenBacklog: flags.Flags.ListenBacklog,
+		TLSConfig: &tls.Config{
+			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				return certs[info.ServerName], nil
+			},
+		},
+		Handler: handler,
+	}
+
 	mgmtApp := &apps.MgmtApp{
 		Logger:  logng.WithFieldKeyVals("logger", "mgmt app"),
 		Listen:  flags.Flags.Mgmt,
 		Handler: handler,
 	}
 
-	if !application.RunAll(appCtx, []application.Application{httpApp, mgmtApp}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
+	if !application.RunAll(appCtx, []application.Application{httpApp, httpsApp, mgmtApp}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
 		logng.Error("quit timeout")
 	}
 	logng.Info("stopped.")
