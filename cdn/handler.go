@@ -151,6 +151,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			_, _ = io.Copy(w, strings.NewReader(BodyContentSizeExceeded))
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.Copy(w, strings.NewReader(BodyInternalServerError))
 		}
 		return
 	}
