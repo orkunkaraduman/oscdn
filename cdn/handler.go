@@ -15,6 +15,7 @@ import (
 	"github.com/goinsane/logng"
 	"github.com/goinsane/xcontext"
 
+	"github.com/orkunkaraduman/oscdn/httputil"
 	"github.com/orkunkaraduman/oscdn/ioutil"
 	"github.com/orkunkaraduman/oscdn/store"
 )
@@ -120,7 +121,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		_url.Scheme = hostConfig.Origin.Scheme
 		_url.Host = hostConfig.Origin.Host
 		if hostConfig.HostOverride {
-			host = req.URL.Host
+			domain, _, _ := httputil.SplitHostPort(req.URL.Host)
+			_, port, _ := httputil.SplitHostPort(hostConfig.Origin.Host)
+			host = domain
+			if port > 0 {
+				host = fmt.Sprintf("%s:%d", domain, port)
+			}
 		}
 		if hostConfig.IgnoreQuery {
 			_url.RawQuery = ""
