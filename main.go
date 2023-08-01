@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/goinsane/application"
 	"github.com/goinsane/flagbind"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/orkunkaraduman/oscdn/apps"
 	"github.com/orkunkaraduman/oscdn/cdn"
+	"github.com/orkunkaraduman/oscdn/internal/config"
 	"github.com/orkunkaraduman/oscdn/internal/flags"
 	"github.com/orkunkaraduman/oscdn/store"
 )
@@ -64,40 +67,97 @@ func main() {
 
 	logng.Info("starting.")
 
-	s, err := store.New(store.Config{
-		Logger:            logng.WithFieldKeyVals("logger", "store"),
-		Path:              flags.Flags.StorePath,
-		TLSConfig:         nil,
-		MaxIdleConns:      100,
-		UserAgent:         "",
-		DefaultHostConfig: nil,
-		GetHostConfig:     nil,
-	})
+	c, err := config.FromFile(flags.Flags.Config)
 	if err != nil {
+		err = fmt.Errorf("config load error: %w", err)
+		logng.Error(err)
+		return
+	}
+	err = c.Validate()
+	if err != nil {
+		err = fmt.Errorf("config validate error: %w", err)
 		logng.Error(err)
 		return
 	}
 
+	s, err := store.New(store.Config{
+		Logger:       logng.WithFieldKeyVals("logger", "store"),
+		Path:         flags.Flags.StorePath,
+		TLSConfig:    nil,
+		MaxIdleConns: 100,
+		UserAgent:    "oscdn",
+		DefaultHostConfig: &store.HostConfig{
+			MaxSize:       1024 * 1024 * 1024,
+			MaxAge:        24 * time.Hour,
+			DownloadBurst: 0,
+			DownloadRate:  0,
+		},
+		GetHostConfig: func(scheme, host string) *store.HostConfig {
+			o, ok := c.Origins[host]
+			if !ok {
+				return nil
+			}
+			return &store.HostConfig{
+				MaxSize:       o.MaxSize,
+				MaxAge:        o.MaxAge,
+				DownloadBurst: o.DownloadBurst,
+				DownloadRate:  o.DownloadRate,
+			}
+		},
+	})
+	if err != nil {
+		err = fmt.Errorf("store create error: %w", err)
+		logng.Error(err)
+		return
+	}
+	defer func(s *store.Store) {
+		_ = s.Release()
+	}(s)
+
 	h := &cdn.Handler{
-		Logger:    logng.WithFieldKeyVals("logger", "handler"),
-		Context:   nil,
-		Store:     s,
-		GetOrigin: nil,
+		Logger:  logng.WithFieldKeyVals("logger", "handler"),
+		Context: nil,
+		Store:   s,
+		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
+			h, ok := c.Hosts[host]
+			if !ok {
+				return nil
+			}
+			o, ok := c.Origins[h.Origin]
+			if !ok {
+				return nil
+			}
+			result := &cdn.HostConfig{
+				HostOverride:  h.HostOverride,
+				IgnoreQuery:   h.IgnoreQuery,
+				HttpsRedirect: h.HttpsRedirect,
+				UploadBurst:   h.UploadBurst,
+				UploadRate:    h.UploadRate,
+			}
+			result.Origin.Scheme = "http"
+			if o.UseHttps {
+				result.Origin.Scheme = "https"
+			}
+			result.Origin.Host = h.Origin
+			return result
+		},
 	}
 
-	if !application.RunAll(appCtx, []application.Application{
-		&apps.HttpApp{
-			Logger:        logng.WithFieldKeyVals("logger", "http app"),
-			Listen:        flags.Flags.Http,
-			ListenBacklog: 0,
-			TLSConfig:     nil,
-			Handler:       h,
-		},
-		&apps.MgmtApp{
-			Listen:  flags.Flags.Mgmt,
-			Handler: h,
-		},
-	}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
+	httpApp := &apps.HttpApp{
+		Logger:        logng.WithFieldKeyVals("logger", "http app"),
+		Listen:        flags.Flags.Http,
+		ListenBacklog: flags.Flags.ListenBacklog,
+		TLSConfig:     nil,
+		Handler:       h,
+	}
+
+	mgmtApp := &apps.MgmtApp{
+		Logger:  logng.WithFieldKeyVals("logger", "mgmt app"),
+		Listen:  flags.Flags.Mgmt,
+		Handler: h,
+	}
+
+	if !application.RunAll(appCtx, []application.Application{httpApp, mgmtApp}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
 		logng.Error("quit timeout")
 	}
 	logng.Info("stopped.")
