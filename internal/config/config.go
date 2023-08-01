@@ -10,6 +10,13 @@ import (
 )
 
 type Config struct {
+	Origins map[string]struct {
+		UseHttps      bool
+		MaxSize       int64
+		MaxAge        time.Duration
+		DownloadBurst int64
+		DownloadRate  int64
+	}
 	Hosts map[string]struct {
 		TLS struct {
 			Key  string
@@ -21,13 +28,6 @@ type Config struct {
 		HttpsRedirect bool
 		UploadBurst   int64
 		UploadRate    int64
-	}
-	Origins map[string]struct {
-		UseHttps      bool
-		MaxSize       int64
-		MaxAge        time.Duration
-		DownloadBurst int64
-		DownloadRate  int64
 	}
 }
 
