@@ -47,8 +47,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		ctx = context.Background()
 	}
 
-	logger := h.Logger.WithFieldKeyVals("scheme", req.URL.Scheme,
-		"host", req.URL.Host, "requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr)
+	if req.TLS == nil {
+		req.URL.Scheme = "http"
+		req.URL.Host = strings.TrimSuffix(req.Host, ":80")
+	} else {
+		req.URL.Scheme = "https"
+		req.URL.Host = strings.TrimSuffix(req.Host, ":443")
+	}
+
+	logger := h.Logger.WithFieldKeyVals("scheme", req.URL.Scheme, "host", req.URL.Host,
+		"requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr)
 	ctx = context.WithValue(ctx, "logger", logger)
 
 	err = ctx.Err()
@@ -56,21 +64,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		logger.V(2).Error(err)
 		return
 	}
-
-	switch req.URL.Scheme {
-	case "http":
-		req.URL.Host = strings.TrimSuffix(req.URL.Host, ":80")
-	case "https":
-		req.URL.Host = strings.TrimSuffix(req.URL.Host, ":443")
-	default:
-		err = fmt.Errorf("unknown scheme %s", req.URL.Scheme)
-		logger.V(2).Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	logger = logger.WithFieldKeyVals("normalizedHost", req.URL.Host)
-	ctx = context.WithValue(context.Background(), "logger", logger)
 
 	if (req.URL.Scheme != "http" && req.URL.Scheme != "https") ||
 		req.URL.Opaque != "" ||
