@@ -143,8 +143,8 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 	firstHost := baseURL.Host
 
 	baseHost := firstHost
-	if !HostRgx.MatchString(baseHost) {
-		err = errors.New("invalid base host")
+	if !hostRgx.MatchString(baseHost) {
+		err = fmt.Errorf("invalid base host %q", baseHost)
 		return
 	}
 	switch firstScheme {
@@ -164,8 +164,8 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 	if host != "" {
 		keyHost = host
 	}
-	if !HostRgx.MatchString(keyHost) {
-		err = errors.New("invalid key host")
+	if !hostRgx.MatchString(keyHost) {
+		err = fmt.Errorf("invalid key host %q", keyHost)
 		return
 	}
 	switch firstScheme {
@@ -681,7 +681,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	logger = logger.WithFieldKeyVals("host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	if !HostRgx.MatchString(host) {
+	if !hostRgx.MatchString(host) {
 		err = errors.New("invalid host")
 		return
 	}
