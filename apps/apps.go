@@ -25,8 +25,8 @@ type HttpApp struct {
 	Logger        *logng.Logger
 	Listen        string
 	ListenBacklog int
-	Handler       *cdn.Handler
 	TLSConfig     *tls.Config
+	Handler       *cdn.Handler
 
 	logger *logng.Logger
 	wg     sync.WaitGroup
@@ -113,8 +113,9 @@ func (a *HttpApp) Stop() {
 }
 
 type MgmtApp struct {
-	Logger *logng.Logger
-	Listen string
+	Logger  *logng.Logger
+	Listen  string
+	Handler *cdn.Handler
 
 	logger *logng.Logger
 	wg     sync.WaitGroup
