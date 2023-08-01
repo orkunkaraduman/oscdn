@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -52,7 +53,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	err = ctx.Err()
 	if err != nil {
-		logger.Error(err)
+		logger.V(2).Error(err)
 		return
 	}
 
@@ -71,6 +72,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	logger = logger.WithFieldKeyVals("normalizedHost", req.URL.Host)
 	ctx = context.WithValue(context.Background(), "logger", logger)
 
+	if (req.URL.Scheme != "http" && req.URL.Scheme != "https") ||
+		req.URL.Opaque != "" ||
+		req.URL.User != nil ||
+		req.URL.Host == "" ||
+		req.URL.Fragment != "" {
+		err = errors.New("invalid cdn url")
+		logger.V(2).Error(err)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.Copy(w, strings.NewReader(BodyInvalidCdnUrl))
+		return
+	}
+
 	switch req.Method {
 	case http.MethodHead:
 	case http.MethodGet:
@@ -78,6 +91,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		err = fmt.Errorf("method %s not allowed", req.Method)
 		logger.V(2).Error(err)
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		_, _ = io.Copy(w, strings.NewReader(BodyMethodNotAllowed))
 		return
 	}
 
@@ -85,6 +99,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.V(2).Error(err)
 		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.Copy(w, strings.NewReader(BodyInvalidContentRange))
 		return
 	}
 
@@ -92,41 +107,49 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if h.GetOrigin != nil {
 		origin = h.GetOrigin(req.URL.Scheme, req.URL.Host)
 		if origin == nil {
-			err = errors.New("unknown origin")
+			err = errors.New("not allowed host")
 			logger.V(2).Error(err)
 			w.WriteHeader(http.StatusBadGateway)
+			_, _ = io.Copy(w, strings.NewReader(BodyNotAllowedHost))
 			return
 		}
 	}
 
-	rawURL := req.URL.String()
+	_url := &url.URL{
+		Scheme:   req.URL.Scheme,
+		Host:     req.URL.Host,
+		Path:     req.URL.Path,
+		RawQuery: req.URL.RawQuery,
+	}
 	host := ""
 
 	if origin != nil {
-		rawURL = (&url.URL{
-			Scheme:   origin.Scheme,
-			Host:     origin.Host,
-			Path:     req.URL.Path,
-			RawQuery: req.URL.RawQuery,
-		}).String()
+		_url.Scheme = origin.Scheme
+		_url.Host = origin.Host
 		if origin.HostOverride {
 			host = req.URL.Host
 		}
+		if origin.IgnoreQuery {
+			_url.RawQuery = ""
+		}
 	}
 
-	getResult, err := h.Store.Get(ctx, rawURL, host, contentRange)
+	getResult, err := h.Store.Get(ctx, _url.String(), host, contentRange)
 	if err != nil {
 		if xcontext.IsContextError(err) {
-			w.WriteHeader(http.StatusGatewayTimeout)
+			logger.V(2).Error(err)
 			return
 		}
 		switch err.(type) {
 		case *store.RequestError:
 			w.WriteHeader(http.StatusBadGateway)
+			_, _ = io.Copy(w, strings.NewReader(BodyOriginNotResponding))
 		case *store.DynamicContentError:
 			w.WriteHeader(http.StatusBadGateway)
+			_, _ = io.Copy(w, strings.NewReader(BodyDynamicContent))
 		case *store.SizeExceededError:
 			w.WriteHeader(http.StatusBadGateway)
+			_, _ = io.Copy(w, strings.NewReader(BodyContentSizeExceeded))
 		}
 		return
 	}
