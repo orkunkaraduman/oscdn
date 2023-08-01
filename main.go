@@ -115,7 +115,7 @@ func main() {
 	}(s)
 
 	h := &cdn.Handler{
-		Logger:  logng.WithFieldKeyVals("logger", "handler"),
+		Logger:  logng.WithFieldKeyVals("logger", "cdn handler"),
 		Context: nil,
 		Store:   s,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
