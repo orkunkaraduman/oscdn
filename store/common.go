@@ -17,16 +17,16 @@ var (
 )
 
 type Config struct {
-	Logger            *logng.Logger
-	Path              string
-	TLSConfig         *tls.Config
-	MaxIdleConns      int
-	UserAgent         string
-	DefaultHostConfig *HostConfig
-	GetHostConfig     func(scheme, host string) *HostConfig
+	Logger              *logng.Logger
+	Path                string
+	TLSConfig           *tls.Config
+	MaxIdleConns        int
+	UserAgent           string
+	DefaultOriginConfig *OriginConfig
+	GetOriginConfig     func(scheme, host string) *OriginConfig
 }
 
-type HostConfig struct {
+type OriginConfig struct {
 	MaxSize       int64
 	MaxAge        time.Duration
 	DownloadBurst int64
