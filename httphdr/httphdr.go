@@ -6,7 +6,9 @@ import (
 )
 
 func Expires(header http.Header, now time.Time) (expires time.Time) {
-	var err error
+	if !now.After(*new(time.Time)) {
+		panic("invalid now")
+	}
 
 	hasCacheControl := false
 	if h := header.Get("Cache-Control"); h != "" {
@@ -24,13 +26,10 @@ func Expires(header http.Header, now time.Time) (expires time.Time) {
 	}
 
 	if h := header.Get("Expires"); h != "" && !hasCacheControl {
-		expires, err = time.Parse(time.RFC1123, h)
-		if err == nil {
-			if expires.Before(now) {
-				expires = now
-			}
+		expires, _ = time.Parse(time.RFC1123, h)
+		if expires.Before(now) {
+			expires = now
 		}
-		err = nil
 	}
 
 	return
