@@ -77,7 +77,6 @@ func main() {
 	}
 	err = _config.Validate()
 	if err != nil {
-		err = fmt.Errorf("config validate error: %w", err)
 		logng.Error(err)
 		return
 	}
