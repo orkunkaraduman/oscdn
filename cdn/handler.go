@@ -20,10 +20,10 @@ import (
 )
 
 type Handler struct {
-	Logger    *logng.Logger
-	Context   context.Context
-	Store     *store.Store
-	GetOrigin func(scheme, host string) *Origin
+	Logger        *logng.Logger
+	Context       context.Context
+	Store         *store.Store
+	GetHostConfig func(scheme, host string) *HostConfig
 
 	wg sync.WaitGroup
 }
@@ -103,10 +103,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var origin *Origin
-	if h.GetOrigin != nil {
-		origin = h.GetOrigin(req.URL.Scheme, req.URL.Host)
-		if origin == nil {
+	var hostConfig *HostConfig
+	if h.GetHostConfig != nil {
+		hostConfig = h.GetHostConfig(req.URL.Scheme, req.URL.Host)
+		if hostConfig == nil {
 			err = errors.New("not allowed host")
 			logger.V(2).Error(err)
 			w.WriteHeader(http.StatusBadGateway)
@@ -123,13 +123,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	host := ""
 
-	if origin != nil {
-		_url.Scheme = origin.Scheme
-		_url.Host = origin.Host
-		if origin.HostOverride {
+	if hostConfig != nil {
+		_url.Scheme = hostConfig.Origin.Scheme
+		_url.Host = hostConfig.Origin.Host
+		if hostConfig.HostOverride {
 			host = req.URL.Host
 		}
-		if origin.IgnoreQuery {
+		if hostConfig.IgnoreQuery {
 			_url.RawQuery = ""
 		}
 	}
@@ -183,9 +183,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case http.MethodGet:
 		var uploadBurst int64
 		var uploadRate int64
-		if origin != nil {
-			uploadBurst = origin.UploadBurst
-			uploadRate = origin.UploadRate
+		if hostConfig != nil {
+			uploadBurst = hostConfig.UploadBurst
+			uploadRate = hostConfig.UploadRate
 		}
 		_, err = ioutil.CopyRate(w, getResult, uploadBurst, uploadRate)
 	}

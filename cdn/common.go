@@ -1,8 +1,10 @@
 package cdn
 
-type Origin struct {
-	Scheme        string
-	Host          string
+type HostConfig struct {
+	Origin struct {
+		Scheme string
+		Host   string
+	}
 	HostOverride  bool
 	IgnoreQuery   bool
 	HttpsRedirect bool
