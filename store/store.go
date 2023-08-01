@@ -530,7 +530,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		return nil, err
 	}
 
-	if expires := httphdr.Expires(resp.Header, now); !expires.After(data.Info.ExpiresAt) {
+	if expires := httphdr.Expires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
 		data.Info.ExpiresAt = expires
 	}
 
