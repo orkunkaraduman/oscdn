@@ -80,7 +80,7 @@ func main() {
 		return
 	}
 
-	s, err := store.New(store.Config{
+	_store, err := store.New(store.Config{
 		Logger:       logng.WithFieldKeyVals("logger", "store"),
 		Path:         flags.Flags.StorePath,
 		TLSConfig:    nil,
@@ -112,12 +112,12 @@ func main() {
 	}
 	defer func(s *store.Store) {
 		_ = s.Release()
-	}(s)
+	}(_store)
 
-	h := &cdn.Handler{
+	handler := &cdn.Handler{
 		Logger:  logng.WithFieldKeyVals("logger", "cdn handler"),
 		Context: nil,
-		Store:   s,
+		Store:   _store,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
 			h, ok := c.Hosts[host]
 			if !ok {
@@ -148,13 +148,13 @@ func main() {
 		Listen:        flags.Flags.Http,
 		ListenBacklog: flags.Flags.ListenBacklog,
 		TLSConfig:     nil,
-		Handler:       h,
+		Handler:       handler,
 	}
 
 	mgmtApp := &apps.MgmtApp{
 		Logger:  logng.WithFieldKeyVals("logger", "mgmt app"),
 		Listen:  flags.Flags.Mgmt,
-		Handler: h,
+		Handler: handler,
 	}
 
 	if !application.RunAll(appCtx, []application.Application{httpApp, mgmtApp}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
