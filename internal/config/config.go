@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"os"
@@ -17,10 +18,10 @@ type Config struct {
 		DownloadBurst int64
 		DownloadRate  int64
 	}
-	Hosts map[string]struct {
-		TLS struct {
-			Key  string
+	Domains map[string]struct {
+		TLS *struct {
 			Cert string
+			Key  string
 		}
 		Origin        string
 		HostOverride  bool
@@ -55,10 +56,27 @@ func FromFile(name string) (c *Config, err error) {
 }
 
 func (c *Config) Validate() error {
-	for k, h := range c.Hosts {
-		if _, ok := c.Origins[h.Origin]; !ok {
-			return fmt.Errorf("unknown origin %q for %q", h.Origin, k)
+	for k, d := range c.Domains {
+		if _, ok := c.Origins[d.Origin]; !ok {
+			return fmt.Errorf("unknown origin %q for %q", d.Origin, k)
 		}
 	}
 	return nil
+}
+
+func (c *Config) TLSCertificates() (certs map[string]*tls.Certificate, err error) {
+	certs = make(map[string]*tls.Certificate, len(c.Domains))
+	for k, d := range c.Domains {
+		if d.TLS == nil {
+			continue
+		}
+		var cert tls.Certificate
+		cert, err = tls.X509KeyPair([]byte(d.TLS.Cert), []byte(d.TLS.Key))
+		if err != nil {
+			err = fmt.Errorf("unable to load certificate for %q: %w", k, err)
+			return nil, err
+		}
+		certs[k] = &cert
+	}
+	return certs, nil
 }
