@@ -77,7 +77,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 }
 
 func (a *HttpApp) Run(ctx xcontext.CancelableContext) {
-	logng.Info("started.")
+	a.logger.Info("started.")
 
 	if a.httpSrv.TLSConfig == nil {
 		if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
@@ -99,7 +99,7 @@ func (a *HttpApp) Terminate(ctx context.Context) {
 		a.logger.Errorf("http server shutdown error: %w", e)
 	}
 
-	logng.Info("terminated.")
+	a.logger.Info("terminated.")
 }
 
 func (a *HttpApp) Stop() {
@@ -109,7 +109,7 @@ func (a *HttpApp) Stop() {
 	a.Handler.Wait()
 
 	a.wg.Wait()
-	logng.Info("stopped.")
+	a.logger.Info("stopped.")
 }
 
 type MgmtApp struct {
@@ -157,7 +157,7 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 }
 
 func (a *MgmtApp) Run(ctx xcontext.CancelableContext) {
-	logng.Info("started.")
+	a.logger.Info("started.")
 
 	if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
 		a.logger.Errorf("http serve error: %w", e)
@@ -171,7 +171,7 @@ func (a *MgmtApp) Terminate(ctx context.Context) {
 		a.logger.Errorf("http server shutdown error: %w", e)
 	}
 
-	logng.Info("terminated.")
+	a.logger.Info("terminated.")
 }
 
 func (a *MgmtApp) Stop() {
@@ -180,5 +180,5 @@ func (a *MgmtApp) Stop() {
 	}
 
 	a.wg.Wait()
-	logng.Info("stopped.")
+	a.logger.Info("stopped.")
 }
