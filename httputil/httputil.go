@@ -1,9 +1,28 @@
-package httphdr
+package httputil
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
+
+func SplitHostPort(host string) (domain string, port int, err error) {
+	domain = host
+	if idx := strings.LastIndex(host, ":"); idx >= 0 {
+		domain = host[:idx]
+		sPort := host[idx+1:]
+		var uPort uint64
+		uPort, err = strconv.ParseUint(sPort, 10, 16)
+		if err != nil {
+			err = fmt.Errorf("unable to parse port %q: %w", sPort, err)
+			return
+		}
+		port = int(uPort)
+	}
+	return
+}
 
 func Expires(header http.Header, now time.Time) (expires time.Time) {
 	if !now.After(*new(time.Time)) {

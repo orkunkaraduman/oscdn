@@ -1,4 +1,4 @@
-package httphdr
+package httputil
 
 import (
 	"math"

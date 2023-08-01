@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/orkunkaraduman/oscdn/httphdr"
+	"github.com/orkunkaraduman/oscdn/httputil"
 	"github.com/orkunkaraduman/oscdn/store"
 )
 
@@ -16,7 +16,7 @@ func getContentRange(h http.Header) (result *store.ContentRange, err error) {
 	if r == "" {
 		return nil, nil
 	}
-	opts := httphdr.ParseOptions(r)
+	opts := httputil.ParseOptions(r)
 	if len(opts) <= 0 {
 		return nil, errors.New("no option")
 	}
