@@ -149,6 +149,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		case *store.SizeExceededError:
 			w.WriteHeader(http.StatusBadGateway)
 			_, _ = io.Copy(w, strings.NewReader(BodyContentSizeExceeded))
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
 	}
