@@ -120,7 +120,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if hostConfig != nil {
 		if req.URL.Scheme == "http" && hostConfig.HttpsRedirect {
 			_url.Scheme = "https"
-			http.Redirect(w, req, _url.String(), http.StatusTemporaryRedirect)
+			w.Header().Set("Location", _url.String())
+			w.WriteHeader(http.StatusFound)
+			_, _ = io.Copy(w, strings.NewReader(BodyHttpsRedirect))
 			return
 		}
 		_url.Scheme = hostConfig.Origin.Scheme

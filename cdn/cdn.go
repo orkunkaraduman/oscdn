@@ -9,4 +9,5 @@ var (
 	BodyDynamicContent      = "dynamic content\n"
 	BodyContentSizeExceeded = "content size exceeded\n"
 	BodyInternalServerError = "internal server error\n"
+	BodyHttpsRedirect       = "https redirect\n"
 )
