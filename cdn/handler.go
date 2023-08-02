@@ -124,7 +124,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Scheme == "http" && hostConfig.HttpsRedirect {
 			_url.Scheme = "https"
 			_url.Host = domain
-			if hostConfig.HttpsRedirectPort > 0 {
+			if hostConfig.HttpsRedirectPort > 0 && hostConfig.HttpsRedirectPort != 443 {
 				_url.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
 			}
 			w.Header().Set("Location", _url.String())
