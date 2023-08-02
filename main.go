@@ -90,8 +90,8 @@ func main() {
 		Logger:       logng.WithFieldKeyVals("logger", "store"),
 		Path:         flags.Flags.StorePath,
 		TLSConfig:    nil,
-		MaxIdleConns: 100,
-		UserAgent:    "oscdn",
+		MaxIdleConns: flags.Flags.MaxIdleConns,
+		UserAgent:    flags.Flags.UserAgent,
 		DefaultHostConfig: &store.HostConfig{
 			MaxSize:       1024 * 1024 * 1024,
 			MaxAge:        24 * time.Hour,

@@ -11,10 +11,12 @@ type _Flags struct {
 	QuitTimeout      time.Duration `default:"3m"`
 	Config           string        `default:"config.yaml"`
 	StorePath        string        `default:"."`
-	ListenBacklog    int           `default:"0"`
+	MaxIdleConns     int           `default:"0"`
+	UserAgent        string        `default:"oscdn"`
 	Http             string        `default:":8080"`
 	Https            string        `default:":8443"`
 	Mgmt             string        `default:":9080"`
+	ListenBacklog    int           `default:"0"`
 }
 
 func (f *_Flags) Validate() error {
