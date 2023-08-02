@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/pprof"
 	"sync"
 	"time"
 
@@ -139,11 +138,7 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	a.logger.Info("listening.")
 
 	a.httpServeMux = new(http.ServeMux)
-	a.httpServeMux.HandleFunc("/debug/pprof/", pprof.Index)
-	a.httpServeMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	a.httpServeMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	a.httpServeMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	a.httpServeMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	a.httpServeMux.Handle("/debug/", mgmtDebugMux)
 	a.httpServeMux.Handle("/metrics/", promhttp.Handler())
 
 	a.httpSrv = &http.Server{
@@ -182,3 +177,5 @@ func (a *MgmtApp) Stop() {
 	a.wg.Wait()
 	a.logger.Info("stopped.")
 }
+
+var mgmtDebugMux = new(http.ServeMux)
