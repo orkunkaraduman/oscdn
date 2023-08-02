@@ -54,7 +54,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 		ctx.Cancel()
 		return
 	}
-	a.logger.Info("listening.")
+	a.logger.Infof("listening %q.", a.Listen)
 
 	a.httpSrv = &http.Server{
 		Handler: h2c.NewHandler(a.Handler, &http2.Server{
@@ -135,7 +135,7 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 		ctx.Cancel()
 		return
 	}
-	a.logger.Info("listening.")
+	a.logger.Infof("listening %q.", a.Listen)
 
 	a.httpServeMux = new(http.ServeMux)
 	a.httpServeMux.Handle("/debug/", mgmtDebugMux)
