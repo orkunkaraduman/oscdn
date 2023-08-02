@@ -135,11 +135,12 @@ func main() {
 				return nil
 			}
 			result := &cdn.HostConfig{
-				DomainOverride: d.DomainOverride,
-				IgnoreQuery:    d.IgnoreQuery,
-				HttpsRedirect:  d.HttpsRedirect,
-				UploadBurst:    d.UploadBurst,
-				UploadRate:     d.UploadRate,
+				HttpsRedirect:     d.HttpsRedirect,
+				HttpsRedirectPort: d.HttpsRedirectPort,
+				DomainOverride:    d.DomainOverride,
+				IgnoreQuery:       d.IgnoreQuery,
+				UploadBurst:       d.UploadBurst,
+				UploadRate:        d.UploadRate,
 			}
 			result.Origin.Scheme = "http"
 			if o.UseHttps {
