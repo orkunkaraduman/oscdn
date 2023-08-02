@@ -118,23 +118,31 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	host := ""
 
 	if hostConfig != nil {
+		domain, _, _ := httputil.SplitHostPort(req.URL.Host)
+		_, originPort, _ := httputil.SplitHostPort(hostConfig.Origin.Host)
+
 		if req.URL.Scheme == "http" && hostConfig.HttpsRedirect {
 			_url.Scheme = "https"
+			_url.Host = domain
+			if hostConfig.HttpsRedirectPort > 0 {
+				_url.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
+			}
 			w.Header().Set("Location", _url.String())
 			w.WriteHeader(http.StatusFound)
 			_, _ = io.Copy(w, strings.NewReader(BodyHttpsRedirect))
 			return
 		}
+
 		_url.Scheme = hostConfig.Origin.Scheme
 		_url.Host = hostConfig.Origin.Host
+
 		if hostConfig.DomainOverride {
-			domain, _, _ := httputil.SplitHostPort(req.URL.Host)
-			_, port, _ := httputil.SplitHostPort(hostConfig.Origin.Host)
 			host = domain
-			if port > 0 {
-				host = fmt.Sprintf("%s:%d", domain, port)
+			if originPort > 0 {
+				host = fmt.Sprintf("%s:%d", domain, originPort)
 			}
 		}
+
 		if hostConfig.IgnoreQuery {
 			_url.RawQuery = ""
 		}
