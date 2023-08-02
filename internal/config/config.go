@@ -23,12 +23,13 @@ type Config struct {
 			Cert string
 			Key  string
 		}
-		Origin         string
-		DomainOverride bool
-		IgnoreQuery    bool
-		HttpsRedirect  bool
-		UploadBurst    int64
-		UploadRate     int64
+		Origin            string
+		HttpsRedirect     bool
+		HttpsRedirectPort int
+		DomainOverride    bool
+		IgnoreQuery       bool
+		UploadBurst       int64
+		UploadRate        int64
 	}
 }
 
