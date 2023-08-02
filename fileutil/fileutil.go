@@ -30,8 +30,9 @@ func IsDir(name string) (ok bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	//goland:noinspection GoUnhandledErrorResult
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 	fi, err := f.Stat()
 	if err != nil {
 		return false, err
