@@ -21,7 +21,7 @@ import (
 	"github.com/goinsane/xcontext"
 	"github.com/google/uuid"
 
-	"github.com/orkunkaraduman/oscdn/fsutil"
+	"github.com/orkunkaraduman/oscdn/fileutil"
 	"github.com/orkunkaraduman/oscdn/httputil"
 	"github.com/orkunkaraduman/oscdn/ioutil"
 	"github.com/orkunkaraduman/oscdn/namedlock"
@@ -244,7 +244,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 
 	now := time.Now()
 
-	exists, err := fsutil.IsExists(data.Path)
+	exists, err := fileutil.IsExists(data.Path)
 	if err != nil {
 		err = fmt.Errorf("unable to check data is exists: %w", err)
 		logger.Error(err)
@@ -275,7 +275,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 
 	if exists {
 		var ok bool
-		ok, err = fsutil.IsDir(data.Path)
+		ok, err = fileutil.IsDir(data.Path)
 		if err != nil {
 			err = fmt.Errorf("unable to check data is directory: %w", err)
 			logger.Error(err)
@@ -649,7 +649,7 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 	dataLocker.Lock()
 	defer dataLocker.Unlock()
 
-	ok, err := fsutil.IsExists(dataPath)
+	ok, err := fileutil.IsExists(dataPath)
 	if err != nil {
 		err = fmt.Errorf("unable to check data is exists: %w", err)
 		logger.Error(err)
@@ -696,7 +696,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	hostLocker.Lock()
 	defer hostLocker.Unlock()
 
-	ok, err := fsutil.IsExists(hostPath)
+	ok, err := fileutil.IsExists(hostPath)
 	if err != nil {
 		err = fmt.Errorf("unable to check host is exists: %w", err)
 		logger.Error(err)
@@ -724,7 +724,7 @@ func (s *Store) contentCleaner() {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	for ctx.Err() == nil {
-		if e := walkDir(s.contentPath, func(subContentPath string, dirEntry fs.DirEntry) bool {
+		if e := fileutil.WalkDir(s.contentPath, func(subContentPath string, dirEntry fs.DirEntry) bool {
 			if !dirEntry.IsDir() {
 				return true
 			}
@@ -738,7 +738,7 @@ func (s *Store) contentCleaner() {
 				logger := logger.WithFieldKeyVals("subContentPath", subContentPath)
 				err = os.Remove(subContentPath)
 				if err != nil {
-					if isNotEmpty(err) {
+					if fileutil.IsNotEmpty(err) {
 						err = nil
 						return true
 					}
@@ -768,7 +768,7 @@ func (s *Store) contentCleaner() {
 			defer dataLocker.Unlock()
 
 			var ok bool
-			ok, err = fsutil.IsExists(data.Path)
+			ok, err = fileutil.IsExists(data.Path)
 			if err != nil {
 				err = fmt.Errorf("unable to check data is exists: %w", err)
 				logger.Error(err)
@@ -778,7 +778,7 @@ func (s *Store) contentCleaner() {
 				return true
 			}
 
-			ok, err = fsutil.IsDir(data.Path)
+			ok, err = fileutil.IsDir(data.Path)
 			if err != nil {
 				err = fmt.Errorf("unable to check data is directory: %w", err)
 				logger.Error(err)
@@ -835,7 +835,7 @@ func (s *Store) trashCleaner() {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	for ctx.Err() == nil {
-		if e := walkDir(s.trashPath, func(subTrashPath string, dirEntry fs.DirEntry) bool {
+		if e := fileutil.WalkDir(s.trashPath, func(subTrashPath string, dirEntry fs.DirEntry) bool {
 			err = ctx.Err()
 			if err != nil {
 				return false
@@ -845,7 +845,7 @@ func (s *Store) trashCleaner() {
 
 			err = os.Remove(subTrashPath)
 			if err != nil {
-				if dirEntry.IsDir() && isNotEmpty(err) {
+				if dirEntry.IsDir() && fileutil.IsNotEmpty(err) {
 					err = nil
 					return true
 				}
