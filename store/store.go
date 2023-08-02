@@ -85,11 +85,11 @@ func New(config Config) (result *Store, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get store lock: %w", err)
 	}
-	defer func() {
+	defer func(lockFile *filelock.File) {
 		if err != nil {
-			_ = s.lockFile.Release()
+			_ = lockFile.Release()
 		}
-	}()
+	}(s.lockFile)
 	err = s.lockFile.Truncate(0)
 	if err != nil {
 		return nil, fmt.Errorf("unable to truncate store lock: %w", err)
@@ -401,8 +401,9 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 
 		logger, _ := s.ctx.Value("logger").(*logng.Logger)
 
-		//goland:noinspection GoUnhandledErrorResult
-		defer data.Close()
+		defer func(data *Data) {
+			_ = data.Close()
+		}(data)
 
 		end := make(chan struct{})
 		defer close(end)
@@ -486,12 +487,11 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		logger.V(2).Error(err)
 		return nil, err
 	}
-	//goland:noinspection GoUnhandledErrorResult
-	defer func() {
+	defer func(body io.ReadCloser) {
 		if err != nil {
-			_ = resp.Body.Close()
+			_ = body.Close()
 		}
-	}()
+	}(resp.Body)
 
 	now := time.Now()
 
@@ -560,8 +560,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 		logger, _ := s.ctx.Value("logger").(*logng.Logger)
 
-		//goland:noinspection GoUnhandledErrorResult
-		defer resp.Body.Close()
+		defer func(body io.ReadCloser) {
+			_ = body.Close()
+		}(resp.Body)
 
 		written, err := ioutil.CopyRate(data.Body(), io.LimitReader(resp.Body, data.Info.Size), hostConfig.DownloadBurst, hostConfig.DownloadRate)
 		if err != nil {
@@ -799,8 +800,9 @@ func (s *Store) contentCleaner() {
 				logger.Error(err)
 				return false
 			}
-			//goland:noinspection GoUnhandledErrorResult
-			defer data.Close()
+			defer func(data *Data) {
+				_ = data.Close()
+			}(data)
 			if !data.Info.ExpiresAt.After(time.Now()) {
 				err = s.moveToTrash(data.Path)
 				if err != nil {
