@@ -5,9 +5,9 @@ type HostConfig struct {
 		Scheme string
 		Host   string
 	}
-	HostOverride  bool
-	IgnoreQuery   bool
-	HttpsRedirect bool
-	UploadBurst   int64
-	UploadRate    int64
+	DomainOverride bool
+	IgnoreQuery    bool
+	HttpsRedirect  bool
+	UploadBurst    int64
+	UploadRate     int64
 }

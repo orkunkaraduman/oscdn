@@ -120,7 +120,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if hostConfig != nil {
 		_url.Scheme = hostConfig.Origin.Scheme
 		_url.Host = hostConfig.Origin.Host
-		if hostConfig.HostOverride {
+		if hostConfig.DomainOverride {
 			domain, _, _ := httputil.SplitHostPort(req.URL.Host)
 			_, port, _ := httputil.SplitHostPort(hostConfig.Origin.Host)
 			host = domain
