@@ -12,25 +12,25 @@ import (
 
 type Config struct {
 	Origins map[string]struct {
-		UseHttps      bool
-		MaxSize       int64
-		MaxAge        time.Duration
-		DownloadBurst int64
-		DownloadRate  int64
-	}
+		UseHttps      bool          `yaml:"UseHttps"`
+		MaxSize       int64         `yaml:"MaxSize"`
+		MaxAge        time.Duration `yaml:"MaxAge"`
+		DownloadBurst int64         `yaml:"DownloadBurst"`
+		DownloadRate  int64         `yaml:"DownloadRate"`
+	} `yaml:"Origins"`
 	Domains map[string]struct {
 		TLS *struct {
-			Cert string
-			Key  string
-		}
-		Origin            string
-		HttpsRedirect     bool
-		HttpsRedirectPort int
-		DomainOverride    bool
-		IgnoreQuery       bool
-		UploadBurst       int64
-		UploadRate        int64
-	}
+			Cert string `yaml:"Cert"`
+			Key  string `yaml:"Key"`
+		} `yaml:"TLS"`
+		Origin            string `yaml:"Origin"`
+		HttpsRedirect     bool   `yaml:"HttpsRedirect"`
+		HttpsRedirectPort int    `yaml:"HttpsRedirectPort"`
+		DomainOverride    bool   `yaml:"DomainOverride"`
+		IgnoreQuery       bool   `yaml:"IgnoreQuery"`
+		UploadBurst       int64  `yaml:"UploadBurst"`
+		UploadRate        int64  `yaml:"UploadRate"`
+	} `yaml:"Domains"`
 }
 
 func New(r io.Reader) (c *Config, err error) {
