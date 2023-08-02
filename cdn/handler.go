@@ -118,6 +118,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	host := ""
 
 	if hostConfig != nil {
+		if req.URL.Scheme == "http" && hostConfig.HttpsRedirect {
+			_url.Scheme = "https"
+			http.Redirect(w, req, _url.String(), http.StatusTemporaryRedirect)
+			return
+		}
 		_url.Scheme = hostConfig.Origin.Scheme
 		_url.Host = hostConfig.Origin.Host
 		if hostConfig.DomainOverride {
