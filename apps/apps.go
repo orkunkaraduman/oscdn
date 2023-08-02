@@ -68,7 +68,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 			MaxUploadBufferPerStream:     0,
 			NewWriteScheduler:            nil,
 		}),
-		TLSConfig:         a.TLSConfig,
+		TLSConfig:         a.TLSConfig.Clone(),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
