@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -73,15 +73,15 @@ func New(config Config) (result *Store, err error) {
 				ForceAttemptHTTP2:      true,
 			},
 		},
-		lockPath:    path.Join(config.Path, "lock"),
-		contentPath: path.Join(config.Path, "content"),
-		trashPath:   path.Join(config.Path, "trash"),
+		lockPath:    filepath.Join(config.Path, "lock"),
+		contentPath: filepath.Join(config.Path, "content"),
+		trashPath:   filepath.Join(config.Path, "trash"),
 		hostLock:    namedlock.New(),
 		dataLock:    namedlock.New(),
 		downloads:   make(map[string]chan struct{}, 4096),
 	}
 
-	s.lockFile, err = filelock.Create(fsutil.ToOSPath(s.lockPath), 0666)
+	s.lockFile, err = filelock.Create(s.lockPath, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get store lock: %w", err)
 	}
@@ -95,11 +95,11 @@ func New(config Config) (result *Store, err error) {
 		return nil, fmt.Errorf("unable to truncate store lock: %w", err)
 	}
 
-	err = os.Mkdir(fsutil.ToOSPath(s.contentPath), 0777)
+	err = os.Mkdir(s.contentPath, 0777)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("unable to create content directory: %w", err)
 	}
-	err = os.Mkdir(fsutil.ToOSPath(s.trashPath), 0777)
+	err = os.Mkdir(s.trashPath, 0777)
 	if err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("unable to create trash directory: %w", err)
 	}
@@ -185,12 +185,12 @@ func (s *Store) getURLs(rawURL string, host string) (baseURL, keyURL *url.URL, e
 }
 
 func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
-	result := path.Join(s.contentPath, baseURL.Host)
+	result := filepath.Join(s.contentPath, baseURL.Host)
 	h := sha256.Sum256([]byte((keyURL.String())))
 	for i, j := 0, len(h); i < j; i = i + 2 {
-		result += fmt.Sprintf("%c%04x", '/', h[i:i+2])
+		result += fmt.Sprintf("%c%04x", os.PathSeparator, h[i:i+2])
 	}
-	result = path.Join(result, "data")
+	result = filepath.Join(result, "data")
 	return result
 }
 
@@ -610,8 +610,8 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 }
 
 func (s *Store) moveToTrash(sourcePath string) (err error) {
-	targetPath := path.Join(s.trashPath, uuid.NewString())
-	err = os.Rename(fsutil.ToOSPath(sourcePath), fsutil.ToOSPath(targetPath))
+	targetPath := filepath.Join(s.trashPath, uuid.NewString())
+	err = os.Rename(sourcePath, targetPath)
 	if err != nil {
 		return err
 	}
@@ -687,7 +687,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 		return
 	}
 
-	hostPath := path.Join(s.contentPath, host)
+	hostPath := filepath.Join(s.contentPath, host)
 
 	logger = logger.WithFieldKeyVals("hostPath", hostPath)
 	ctx = context.WithValue(ctx, "logger", logger)
@@ -734,9 +734,9 @@ func (s *Store) contentCleaner() {
 				return false
 			}
 
-			if !strings.HasSuffix(subContentPath, "/data") {
+			if !strings.HasSuffix(subContentPath, fmt.Sprintf("%cdata", os.PathSeparator)) {
 				logger := logger.WithFieldKeyVals("subContentPath", subContentPath)
-				err = os.Remove(fsutil.ToOSPath(subContentPath))
+				err = os.Remove(subContentPath)
 				if err != nil {
 					if isNotEmpty(err) {
 						err = nil
@@ -756,7 +756,7 @@ func (s *Store) contentCleaner() {
 			logger := logger.WithFieldKeyVals("dataPath", data.Path)
 
 			host := strings.TrimPrefix(subContentPath, s.contentPath)
-			if idx := strings.Index(host, "/"); idx >= 0 {
+			if idx := strings.Index(host, string(os.PathSeparator)); idx >= 0 {
 				host = host[:idx]
 			}
 
@@ -787,7 +787,7 @@ func (s *Store) contentCleaner() {
 			if !ok {
 				err = errors.New("data is not directory")
 				logger.Error(err)
-				err = os.Remove(fsutil.ToOSPath(data.Path))
+				err = os.Remove(data.Path)
 				if err != nil {
 					err = fmt.Errorf("unable to remove data: %w", err)
 					logger.Error(err)
@@ -843,7 +843,7 @@ func (s *Store) trashCleaner() {
 
 			logger := logger.WithFieldKeyVals("subTrashPath", subTrashPath)
 
-			err = os.Remove(fsutil.ToOSPath(subTrashPath))
+			err = os.Remove(subTrashPath)
 			if err != nil {
 				if dirEntry.IsDir() && isNotEmpty(err) {
 					err = nil

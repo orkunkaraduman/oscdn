@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"path"
+	"path/filepath"
 	"syscall"
 )
 
@@ -18,17 +18,17 @@ func isNotEmpty(err error) bool {
 }
 
 func walkDir(root string, fn func(p string, d fs.DirEntry) bool) error {
-	return fs.WalkDir(os.DirFS(root), ".", func(p string, d fs.DirEntry, e error) error {
-		if p == "." {
+	return filepath.WalkDir(root, func(p string, d fs.DirEntry, e error) error {
+		if p == root {
 			return e
 		}
 		if e != nil {
-			if d.IsDir() && os.IsNotExist(e) {
+			if d != nil && d.IsDir() && os.IsNotExist(e) {
 				return fs.SkipDir
 			}
 			return e
 		}
-		if fn(path.Join(root, p), d) {
+		if fn(p, d) {
 			return nil
 		}
 		return fs.SkipAll
