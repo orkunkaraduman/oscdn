@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	hostRgx = regexp.MustCompile(`^([A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,6}(:[0-9]{1,5})?$`)
+	hostRgx = regexp.MustCompile(`^([A-Za-z0-9-]{1,63}\.)*([A-Za-z0-9-]{1,63})(:[0-9]{1,5})?$`)
 )
 
 type Config struct {
