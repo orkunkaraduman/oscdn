@@ -12,25 +12,25 @@ import (
 
 type Config struct {
 	Origins map[string]struct {
-		UseHttps      bool          `yaml:"UseHttps"`
-		MaxSize       int64         `yaml:"MaxSize"`
-		MaxAge        time.Duration `yaml:"MaxAge"`
-		DownloadBurst int64         `yaml:"DownloadBurst"`
-		DownloadRate  int64         `yaml:"DownloadRate"`
-	} `yaml:"Origins"`
+		UseHttps      bool          `yaml:"useHttps"`
+		MaxSize       int64         `yaml:"maxSize"`
+		MaxAge        time.Duration `yaml:"maxAge"`
+		DownloadBurst int64         `yaml:"downloadBurst"`
+		DownloadRate  int64         `yaml:"downloadRate"`
+	} `yaml:"origins"`
 	Domains map[string]struct {
 		TLS *struct {
-			Cert string `yaml:"Cert"`
-			Key  string `yaml:"Key"`
-		} `yaml:"TLS"`
-		Origin            string `yaml:"Origin"`
-		HttpsRedirect     bool   `yaml:"HttpsRedirect"`
-		HttpsRedirectPort int    `yaml:"HttpsRedirectPort"`
-		DomainOverride    bool   `yaml:"DomainOverride"`
-		IgnoreQuery       bool   `yaml:"IgnoreQuery"`
-		UploadBurst       int64  `yaml:"UploadBurst"`
-		UploadRate        int64  `yaml:"UploadRate"`
-	} `yaml:"Domains"`
+			Cert string `yaml:"cert"`
+			Key  string `yaml:"key"`
+		} `yaml:"tls"`
+		Origin            string `yaml:"origin"`
+		HttpsRedirect     bool   `yaml:"httpsRedirect"`
+		HttpsRedirectPort int    `yaml:"httpsRedirectPort"`
+		DomainOverride    bool   `yaml:"domainOverride"`
+		IgnoreQuery       bool   `yaml:"ignoreQuery"`
+		UploadBurst       int64  `yaml:"uploadBurst"`
+		UploadRate        int64  `yaml:"uploadRate"`
+	} `yaml:"domains"`
 }
 
 func New(r io.Reader) (c *Config, err error) {
