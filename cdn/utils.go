@@ -38,8 +38,10 @@ func getContentRange(h http.Header) (result *store.ContentRange, err error) {
 	}
 	if len(ranges) > 1 && ranges[1] != "" {
 		result.End, err = strconv.ParseInt(ranges[1], 10, 64)
-		err = fmt.Errorf("unable to parse content range end: %w", err)
-		return nil, err
+		if err != nil {
+			err = fmt.Errorf("unable to parse content range end: %w", err)
+			return nil, err
+		}
 	}
 	return result, nil
 }
