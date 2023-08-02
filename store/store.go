@@ -49,6 +49,11 @@ func New(config Config) (result *Store, err error) {
 	if config.Path == "" {
 		config.Path = "."
 	}
+	config.Path, err = filepath.Abs(config.Path)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get absolute store path: %w", err)
+	}
+
 	if config.UserAgent == "" {
 		config.UserAgent = "oscdn"
 	}
