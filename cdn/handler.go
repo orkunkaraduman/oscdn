@@ -62,7 +62,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	err = ctx.Err()
 	if err != nil {
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		return
 	}
 
@@ -72,7 +72,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.URL.Host == "" ||
 		req.URL.Fragment != "" {
 		err = errors.New("invalid cdn url")
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = io.Copy(w, strings.NewReader(BodyInvalidCdnUrl))
 		return
@@ -83,7 +83,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case http.MethodGet:
 	default:
 		err = fmt.Errorf("method %s not allowed", req.Method)
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = io.Copy(w, strings.NewReader(BodyMethodNotAllowed))
 		return
@@ -91,7 +91,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	contentRange, err := getContentRange(req.Header)
 	if err != nil {
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = io.Copy(w, strings.NewReader(BodyInvalidContentRange))
 		return
@@ -102,7 +102,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		hostConfig = h.GetHostConfig(req.URL.Scheme, req.URL.Host)
 		if hostConfig == nil {
 			err = errors.New("not allowed host")
-			logger.V(2).Error(err)
+			logger.V(1).Error(err)
 			w.WriteHeader(http.StatusBadGateway)
 			_, _ = io.Copy(w, strings.NewReader(BodyNotAllowedHost))
 			return
@@ -151,7 +151,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	getResult, err := h.Store.Get(ctx, _url.String(), host, contentRange)
 	if err != nil {
 		if xcontext.IsContextError(err) {
-			logger.V(2).Error(err)
+			logger.V(1).Error(err)
 			return
 		}
 		switch err.(type) {
@@ -208,7 +208,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	if err != nil {
 		err = fmt.Errorf("content upload error: %w", err)
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		return
 	}
 }

@@ -489,7 +489,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		err = &RequestError{error: err}
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		return nil, err
 	}
 	defer func(body io.ReadCloser) {
@@ -531,7 +531,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 	if hostConfig.MaxSize > 0 && data.Info.Size > hostConfig.MaxSize {
 		err = &SizeExceededError{Size: data.Info.Size}
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		return nil, err
 	}
 
@@ -543,7 +543,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		!data.Info.ExpiresAt.After(now)
 	if dynamic {
 		err = &DynamicContentError{resp: resp}
-		logger.V(2).Error(err)
+		logger.V(1).Error(err)
 		return nil, err
 	}
 
@@ -572,7 +572,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		written, err := ioutil.CopyRate(data.Body(), io.LimitReader(resp.Body, data.Info.Size), hostConfig.DownloadBurst, hostConfig.DownloadRate)
 		if err != nil {
 			err = fmt.Errorf("content download error: %w", err)
-			logger.V(2).Error(err)
+			logger.V(1).Error(err)
 		}
 
 		_ = data.Close()
@@ -597,7 +597,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 		if err == nil && written != data.Info.Size {
 			err = errors.New("different content size")
-			logger.V(2).Error(err)
+			logger.V(1).Error(err)
 		}
 
 		if err != nil && download == downloadNew {
