@@ -488,6 +488,12 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	baseRawURL := baseURL.String()
 	keyRawURL := keyURL.String()
 
+	reqCtx, reqCtxCancel := context.WithCancel(s.ctx)
+	defer func(reqCtxCancel context.CancelFunc) {
+		if err != nil {
+			reqCtxCancel()
+		}
+	}(reqCtxCancel)
 	req := (&http.Request{
 		Method: http.MethodGet,
 		URL:    baseURL,
@@ -495,9 +501,18 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 			"User-Agent": []string{s.config.UserAgent},
 		},
 		Host: keyURL.Host,
-	}).WithContext(s.ctx)
+	}).WithContext(reqCtx)
 
+	requested := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			reqCtxCancel()
+		case <-requested:
+		}
+	}()
 	resp, err := s.httpClient.Do(req)
+	close(requested)
 	if err != nil {
 		err = &RequestError{error: err}
 		logger.V(1).Error(err)
@@ -574,7 +589,11 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	go func() {
 		defer s.wg.Done()
 
+		var err error
+
 		logger, _ := s.ctx.Value("logger").(*logng.Logger)
+
+		defer reqCtxCancel()
 
 		defer func(body io.ReadCloser) {
 			_ = body.Close()
