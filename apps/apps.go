@@ -24,7 +24,7 @@ type HttpApp struct {
 	Logger        *logng.Logger
 	Listen        string
 	ListenBacklog int
-	EnableH2C     bool
+	HandleH2C     bool
 	TLSConfig     *tls.Config
 	Handler       *cdn.Handler
 
@@ -59,7 +59,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 
 	var httpHandler http.Handler
 	httpHandler = a.Handler
-	if a.EnableH2C {
+	if a.HandleH2C {
 		httpHandler = h2c.NewHandler(a.Handler, &http2.Server{
 			MaxHandlers:                  0,
 			MaxConcurrentStreams:         0,

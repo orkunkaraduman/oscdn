@@ -20,7 +20,7 @@ type _Flags struct {
 	Https            string        `default:":8443"`
 	Mgmt             string        `default:":9080"`
 	ListenBacklog    int           `default:"128"`
-	H2C              bool          `default:"false"`
+	HandleH2c        bool          `default:"false"`
 	MinTlsVersion    string        `default:"1.2"`
 }
 
