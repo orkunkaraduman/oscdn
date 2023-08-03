@@ -10,7 +10,7 @@ RUN mkdir /target
 RUN \
     --mount=type=cache,target=/go \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go install . && cp -a /go/bin/oscdn /target/
+    CGO_ENABLED=0 go install -v . && cp -a /go/bin/oscdn /target/
 
 FROM alpine:3.18
 
