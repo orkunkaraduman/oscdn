@@ -40,7 +40,7 @@ func main() {
 	if confPath := os.Getenv("OSCDN_CONF"); confPath != "" {
 		err = flagconf.ParseFile(flagSet, confPath, os.Args[1:])
 		if err != nil {
-			logng.Fatal(err)
+			logng.Errorf("flags config file parse error: %w", err)
 			return
 		}
 	} else {
@@ -51,7 +51,7 @@ func main() {
 	}
 	err = flags.Flags.Validate()
 	if err != nil {
-		logng.Fatalf("flags validate error: %w", err)
+		logng.Errorf("flags validate error: %w", err)
 		return
 	}
 
