@@ -64,10 +64,19 @@ func New(config Config) (result *Store, err error) {
 		httpClient: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
-				DialContext: (&net.Dialer{
-					Timeout:   3 * time.Second,
-					KeepAlive: time.Second,
-				}).DialContext,
+				DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, err error) {
+					conn, err = (&net.Dialer{
+						Timeout: 3 * time.Second,
+					}).DialContext(ctx, network, addr)
+					if err != nil {
+						return nil, err
+					}
+					tcpConn := conn.(*net.TCPConn)
+					_ = tcpConn.SetLinger(-1)
+					_ = tcpConn.SetReadBuffer(128 * 1024)
+					_ = tcpConn.SetWriteBuffer(128 * 1024)
+					return
+				},
 				TLSClientConfig:        config.TLSConfig.Clone(),
 				TLSHandshakeTimeout:    3 * time.Second,
 				MaxIdleConns:           config.MaxIdleConns,
