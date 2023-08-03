@@ -58,7 +58,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	remoteIP, _, _ := httputil.SplitHostPort(req.RemoteAddr)
 
-	logger := h.Logger.WithFieldKeyVals("scheme", req.URL.Scheme, "host", req.URL.Host,
+	logger := h.Logger.WithFieldKeyVals("requestScheme", req.URL.Scheme, "requestHost", req.URL.Host,
 		"requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr, "remoteIP", remoteIP)
 	ctx = context.WithValue(ctx, "logger", logger)
 
