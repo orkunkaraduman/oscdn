@@ -75,6 +75,8 @@ func New(config Config) (result *Store, err error) {
 				ResponseHeaderTimeout:  5 * time.Second,
 				ExpectContinueTimeout:  1 * time.Second,
 				MaxResponseHeaderBytes: 1024 * 1024,
+				WriteBufferSize:        128 * 1024,
+				ReadBufferSize:         128 * 1024,
 				ForceAttemptHTTP2:      true,
 			},
 		},

@@ -14,8 +14,6 @@ import (
 	"github.com/goinsane/xcontext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/valyala/tcplisten"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/orkunkaraduman/oscdn/cdn"
 )
@@ -57,7 +55,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	a.logger.Infof("listening %q.", a.Listen)
 
 	a.httpSrv = &http.Server{
-		Handler: h2c.NewHandler(a.Handler, &http2.Server{
+		Handler: a.Handler, /*h2c.NewHandler(a.Handler, &http2.Server{
 			MaxHandlers:                  0,
 			MaxConcurrentStreams:         0,
 			MaxReadFrameSize:             0,
@@ -66,12 +64,27 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 			MaxUploadBufferPerConnection: 0,
 			MaxUploadBufferPerStream:     0,
 			NewWriteScheduler:            nil,
-		}),
+		}),*/
 		TLSConfig:         a.TLSConfig.Clone(),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 		ErrorLog:          log.New(io.Discard, "", log.LstdFlags),
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			var tcpConn *net.TCPConn
+			switch conn := c.(type) {
+			case *net.TCPConn:
+				tcpConn = conn
+			case *tls.Conn:
+				tcpConn = conn.NetConn().(*net.TCPConn)
+			default:
+				panic("unknown conn type")
+			}
+			_ = tcpConn.SetLinger(-1)
+			_ = tcpConn.SetReadBuffer(128 * 1024)
+			_ = tcpConn.SetWriteBuffer(128 * 1024)
+			return ctx
+		},
 	}
 }
 
