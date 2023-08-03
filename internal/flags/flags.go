@@ -1,6 +1,9 @@
 package flags
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 var Flags = &_Flags{}
 
@@ -18,8 +21,17 @@ type _Flags struct {
 	Mgmt             string        `default:":9080"`
 	ListenBacklog    int           `default:"128"`
 	H2C              bool          `default:"false"`
+	MinTlsVersion    string        `default:"1.2"`
 }
 
 func (f *_Flags) Validate() error {
+	switch f.MinTlsVersion {
+	case "1.0":
+	case "1.1":
+	case "1.2":
+	case "1.3":
+	default:
+		return fmt.Errorf("unknown minimum tls version %q", f.MinTlsVersion)
+	}
 	return nil
 }

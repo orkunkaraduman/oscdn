@@ -51,7 +51,7 @@ func main() {
 	}
 	err = flags.Flags.Validate()
 	if err != nil {
-		logng.Fatal("unable to validate flags")
+		logng.Fatalf("flags validate error: %w", err)
 		return
 	}
 
@@ -77,7 +77,7 @@ func main() {
 	}
 	err = _config.Validate()
 	if err != nil {
-		logng.Error(err)
+		logng.Errorf("config validate error: %w", err)
 		return
 	}
 	certs, err := _config.TLSCertificates()
@@ -171,6 +171,18 @@ func main() {
 			},
 		},
 		Handler: handler,
+	}
+	switch flags.Flags.MinTlsVersion {
+	case "1.0":
+		httpsApp.TLSConfig.MinVersion = tls.VersionTLS10
+	case "1.1":
+		httpsApp.TLSConfig.MinVersion = tls.VersionTLS11
+	case "1.2":
+		httpsApp.TLSConfig.MinVersion = tls.VersionTLS12
+	case "1.3":
+		httpsApp.TLSConfig.MinVersion = tls.VersionTLS13
+	default:
+		panic("unknown minimum tls version")
 	}
 
 	mgmtApp := &apps.MgmtApp{
