@@ -19,7 +19,7 @@ type _Flags struct {
 	UserAgent        string        `default:"oscdn"`
 	Http             string        `default:":8080"`
 	Https            string        `default:":8443"`
-	Mgmt             string        `default:":9080"`
+	Mgmt             string        `default:":8000"`
 	ListenBacklog    int           `default:"128"`
 	HandleH2c        bool          `default:"false"`
 	MinTlsVersion    string        `default:"1.2"`
