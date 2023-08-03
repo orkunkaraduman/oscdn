@@ -14,6 +14,8 @@ import (
 	"github.com/goinsane/xcontext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/valyala/tcplisten"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	"github.com/orkunkaraduman/oscdn/cdn"
 )
@@ -22,6 +24,7 @@ type HttpApp struct {
 	Logger        *logng.Logger
 	Listen        string
 	ListenBacklog int
+	EnableH2C     bool
 	TLSConfig     *tls.Config
 	Handler       *cdn.Handler
 
@@ -54,8 +57,10 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	}
 	a.logger.Infof("listening %q.", a.Listen)
 
-	a.httpSrv = &http.Server{
-		Handler: a.Handler, /*h2c.NewHandler(a.Handler, &http2.Server{
+	var httpHandler http.Handler
+	httpHandler = a.Handler
+	if a.EnableH2C {
+		httpHandler = h2c.NewHandler(a.Handler, &http2.Server{
 			MaxHandlers:                  0,
 			MaxConcurrentStreams:         0,
 			MaxReadFrameSize:             0,
@@ -64,7 +69,10 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 			MaxUploadBufferPerConnection: 0,
 			MaxUploadBufferPerStream:     0,
 			NewWriteScheduler:            nil,
-		}),*/
+		})
+	}
+	a.httpSrv = &http.Server{
+		Handler:           httpHandler,
 		TLSConfig:         a.TLSConfig.Clone(),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       65 * time.Second,

@@ -155,6 +155,7 @@ func main() {
 		Logger:        logng.WithFieldKeyVals("logger", "http app"),
 		Listen:        flags.Flags.Http,
 		ListenBacklog: flags.Flags.ListenBacklog,
+		EnableH2C:     flags.Flags.H2C,
 		TLSConfig:     nil,
 		Handler:       handler,
 	}
@@ -163,6 +164,7 @@ func main() {
 		Logger:        logng.WithFieldKeyVals("logger", "https app"),
 		Listen:        flags.Flags.Https,
 		ListenBacklog: flags.Flags.ListenBacklog,
+		EnableH2C:     false,
 		TLSConfig: &tls.Config{
 			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				return certs[info.ServerName], nil
