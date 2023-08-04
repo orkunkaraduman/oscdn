@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/goinsane/logng"
@@ -22,31 +21,14 @@ import (
 
 type Handler struct {
 	Logger        *logng.Logger
-	Context       context.Context
 	Store         *store.Store
 	GetHostConfig func(scheme, host string) *HostConfig
-
-	wg sync.WaitGroup
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var err error
 
-	defer func() {
-		if p := recover(); p != nil {
-			go func() {
-				panic(p)
-			}()
-		}
-	}()
-
-	h.wg.Add(1)
-	defer h.wg.Done()
-
-	ctx := h.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := context.Background()
 
 	if req.TLS == nil {
 		req.URL.Scheme = "http"
@@ -61,6 +43,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	logger := h.Logger.WithFieldKeyVals("requestScheme", req.URL.Scheme, "requestHost", req.URL.Host,
 		"requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr, "remoteIP", remoteIP)
 	ctx = context.WithValue(ctx, "logger", logger)
+
+	domain, _, _ := httputil.SplitHostPort(req.URL.Host)
 
 	err = ctx.Err()
 	if err != nil {
@@ -111,46 +95,45 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	_url := &url.URL{
+	storeURL := &url.URL{
 		Scheme:   req.URL.Scheme,
 		Host:     req.URL.Host,
 		Path:     req.URL.Path,
 		RawQuery: req.URL.RawQuery,
 	}
-	host := ""
+	storeHost := ""
 
 	if hostConfig != nil {
-		domain, _, _ := httputil.SplitHostPort(req.URL.Host)
 		_, originPort, _ := httputil.SplitHostPort(hostConfig.Origin.Host)
 
 		if req.URL.Scheme == "http" && hostConfig.HttpsRedirect {
-			_url.Scheme = "https"
-			_url.Host = domain
+			storeURL.Scheme = "https"
+			storeURL.Host = domain
 			if hostConfig.HttpsRedirectPort > 0 && hostConfig.HttpsRedirectPort != 443 {
-				_url.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
+				storeURL.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
 			}
-			w.Header().Set("Location", _url.String())
+			w.Header().Set("Location", storeURL.String())
 			w.WriteHeader(http.StatusFound)
 			_, _ = io.Copy(w, strings.NewReader(BodyHttpsRedirect))
 			return
 		}
 
-		_url.Scheme = hostConfig.Origin.Scheme
-		_url.Host = hostConfig.Origin.Host
+		storeURL.Scheme = hostConfig.Origin.Scheme
+		storeURL.Host = hostConfig.Origin.Host
 
 		if hostConfig.DomainOverride {
-			host = domain
+			storeHost = domain
 			if originPort > 0 {
-				host = fmt.Sprintf("%s:%d", domain, originPort)
+				storeHost = fmt.Sprintf("%s:%d", domain, originPort)
 			}
 		}
 
 		if hostConfig.IgnoreQuery {
-			_url.RawQuery = ""
+			storeURL.RawQuery = ""
 		}
 	}
 
-	getResult, err := h.Store.Get(ctx, _url.String(), host, contentRange)
+	getResult, err := h.Store.Get(ctx, storeURL.String(), storeHost, contentRange)
 	if err != nil {
 		if xcontext.IsContextError(err) {
 			logger.V(1).Error(err)
@@ -172,6 +155,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	}
+	defer func(getResult store.GetResult) {
+		_ = getResult.Close()
+	}(getResult)
 
 	w.Header().Set("X-Cache-Status", getResult.CacheStatus.String())
 	for _, key := range []string{
@@ -213,8 +199,4 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		logger.V(1).Error(err)
 		return
 	}
-}
-
-func (h *Handler) Wait() {
-	h.wg.Wait()
 }
