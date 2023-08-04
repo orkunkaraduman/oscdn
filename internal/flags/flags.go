@@ -17,6 +17,7 @@ type _Flags struct {
 	StorePath        string        `default:""`
 	MaxIdleConns     int           `default:"100"`
 	UserAgent        string        `default:"oscdn"`
+	ServerHeader     string        `default:"oscdn"`
 	Http             string        `default:":8080"`
 	Https            string        `default:":8443"`
 	Mgmt             string        `default:":8000"`

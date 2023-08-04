@@ -21,6 +21,7 @@ import (
 type Handler struct {
 	Logger        *logng.Logger
 	Store         *store.Store
+	ServerHeader  string
 	GetHostConfig func(scheme, host string) *HostConfig
 }
 
@@ -50,6 +51,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	w.Header().Set("Server", "oscdn")
+	if h.ServerHeader != "" {
+		w.Header().Set("Server", h.ServerHeader)
+	}
+
 	if (req.URL.Scheme != "http" && req.URL.Scheme != "https") ||
 		req.URL.Opaque != "" ||
 		req.URL.User != nil ||
@@ -73,6 +79,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	contentRange, err := getContentRange(req.Header)
 	if err != nil {
+		err = fmt.Errorf("invalid content range: %w", err)
 		logger.V(1).Error(err)
 		http.Error(w, "invalid content range", http.StatusBadRequest)
 		return
@@ -106,7 +113,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if hostConfig.HttpsRedirectPort > 0 && hostConfig.HttpsRedirectPort != 443 {
 				storeURL.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
 			}
-			//http.Redirect(w, req, storeURL.String(), http.StatusFound)
+			w.Header().Set("Location", storeURL.String())
 			http.Error(w, http.StatusText(http.StatusFound), http.StatusFound)
 			return
 		}
