@@ -59,7 +59,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	logger.Infof("listening %q.", a.Listen)
 
 	var httpHandler http.Handler
-	httpHandler = a.Handler
+	httpHandler = http.HandlerFunc(a.httpHandler)
 	if a.HandleH2C {
 		httpHandler = h2c.NewHandler(http.HandlerFunc(a.httpHandler), &http2.Server{
 			MaxHandlers:                  0,
@@ -122,6 +122,7 @@ func (a *HttpApp) Terminate(ctx context.Context) {
 
 	if e := a.httpSrv.Shutdown(ctx); e != nil {
 		logger.Errorf("http server shutdown error: %w", e)
+		_ = a.httpSrv.Close()
 	}
 
 	logger.Info("terminated.")

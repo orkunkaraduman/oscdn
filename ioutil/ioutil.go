@@ -18,10 +18,10 @@ func CopyRate(dst io.Writer, src io.Reader, burst, rate int64) (written int64, e
 	}
 	// shaping
 	if rate > 0 {
-		const k = 16
+		const k = 64
 		period := time.Second / k
 		leakSize := rate * 1024 / k
-		rd := ioshape.NewLeakyBucket(src, period, leakSize, 4*leakSize)
+		rd := ioshape.NewLeakyBucket(src, period, leakSize, 128*1024)
 		defer rd.Stop()
 		n, e := io.Copy(dst, rd)
 		written += n

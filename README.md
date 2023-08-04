@@ -12,6 +12,11 @@ a powerful and versatile solution for content delivery needs.
 - HTTP/2 Support: oscdn leverages the latest HTTP/2 protocol to improve the loading speed and performance of websites,
 reducing latency and increasing concurrent connections.
 
+- HTTP/2 with h2c Support: In addition to traditional HTTP/2 over TLS (HTTP/2), oscdn now supports HTTP/2 Cleartext
+(h2c). This feature allows clients to initiate HTTP/2 communication without prior TLS negotiation.
+h2c support can be beneficial in certain scenarios where TLS encryption is not required, reducing handshake overhead
+and simplifying deployments.
+
 - Partial Content Serving: oscdn allows clients to request only parts of a resource, making it ideal for large files
 like videos, audio, or images. This feature enhances the overall user experience and saves bandwidth.
 

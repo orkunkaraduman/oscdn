@@ -12,8 +12,12 @@ github.com/goinsane/flagbind v0.2.1 h1:pi9qQWOpSRq2ttVyXtC+fcepmT9AGX2otYMIEGyYR
 github.com/goinsane/flagbind v0.2.1/go.mod h1:qrGiSJyH0yXugjOKOEp4u4uz3FtO9UCRV8FqvDzxGms=
 github.com/goinsane/flagconf v0.2.0 h1:XBU24wJ/QU7SjFLbY8DuT+FLBilcrxFyVWDKoDjugEU=
 github.com/goinsane/flagconf v0.2.0/go.mod h1:4lCWqHygHwHSTWehigHwvrTeB/d4mml8/TWIiVYuIFs=
-github.com/goinsane/ioshape v0.4.0 h1:U5CMpaRh6fCyfsjUc9wGyF4bt3GStJm2vwiEtQJB/1o=
-github.com/goinsane/ioshape v0.4.0/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
+github.com/goinsane/ioshape v0.5.0 h1:irEEtMyb2/YdKlOvFPE7Krht3c8meNWFBNrB/HVB00I=
+github.com/goinsane/ioshape v0.5.0/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
+github.com/goinsane/ioshape v0.6.0 h1:GiQ3UQOa362beYp7rDF2j0ut3kE3DMD+VGYRXbZtrWY=
+github.com/goinsane/ioshape v0.6.0/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
+github.com/goinsane/ioshape v0.6.1 h1:1wfCG3YqsoKOA1WhWo0IvqIzF/8oZthAvP3ObGKu3bs=
+github.com/goinsane/ioshape v0.6.1/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
 github.com/goinsane/logng v0.3.0 h1:Qsw3Fqy/N5pV9/XxCGyGf1MDq+SY9+dmIpdqBrAJlY0=
 github.com/goinsane/logng v0.3.0/go.mod h1:VN3EnW6OAJVrhbW9BL+Jv5fUtkA7xjIGRYSXW5tXBuo=
 github.com/goinsane/xcontext v1.7.0 h1:Jz6Gh2WCOu/u84d2iCrPUMfOwFAKLfCDs4mLGTunN+8=
