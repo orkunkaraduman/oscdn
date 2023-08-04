@@ -79,6 +79,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	contentRange, err := getContentRange(req.Header)
 	if err != nil {
+		err = fmt.Errorf("invalid content range: %w", err)
 		logger.V(1).Error(err)
 		http.Error(w, "invalid content range", http.StatusBadRequest)
 		return
