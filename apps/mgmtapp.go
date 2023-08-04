@@ -49,7 +49,7 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	a.httpServeMux = new(http.ServeMux)
 	a.httpServeMux.Handle("/debug/", mgmtDebugMux)
 	a.httpServeMux.Handle("/metrics/", promhttp.Handler())
-	a.httpServeMux.HandleFunc("/cdn/", a.cdnHandler)
+	a.httpServeMux.Handle("/cdn/", http.StripPrefix("/cdn", http.HandlerFunc(a.cdnHandler)))
 
 	a.httpSrv = &http.Server{
 		Handler:           http.HandlerFunc(a.httpHandler),
@@ -121,41 +121,41 @@ func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 
 	switch {
 
-	case req.RequestURI == "/cdn/purge":
+	case req.URL.Path == "/":
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+
+	case req.URL.Path == "/purge":
 		if req.Method != http.MethodPost {
-			_, _ = w.Write([]byte(fmt.Sprintf("%s\n", http.StatusText(http.StatusMethodNotAllowed))))
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			break
 		}
 		err = a.Store.Purge(ctx, values.Get("url"), values.Get("host"))
 		switch err {
 		case store.ErrNotExists:
-			_, _ = w.Write([]byte("content not exists"))
-			w.WriteHeader(http.StatusNoContent)
+			http.Error(w, "content not exists", http.StatusGone)
 		default:
-			_, _ = w.Write([]byte("internal error"))
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		case nil:
-			_, _ = w.Write([]byte("content purged"))
-			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprintln(w, "content purged")
 		}
 
-	case req.RequestURI == "/cdn/purge_host":
+	case req.URL.Path == "/purge_host":
 		if req.Method != http.MethodPost {
-			_, _ = w.Write([]byte(fmt.Sprintf("%s\n", http.StatusText(http.StatusMethodNotAllowed))))
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			break
 		}
 		err = a.Store.PurgeHost(ctx, values.Get("host"))
 		switch err {
 		case store.ErrNotExists:
-			_, _ = w.Write([]byte("host not exists"))
-			w.WriteHeader(http.StatusNoContent)
+			http.Error(w, "host not exists", http.StatusGone)
 		default:
-			_, _ = w.Write([]byte("internal error"))
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		case nil:
-			_, _ = w.Write([]byte("host purged"))
-			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprintln(w, "host purged")
 		}
+
+	default:
+		http.NotFound(w, req)
 
 	}
 }
