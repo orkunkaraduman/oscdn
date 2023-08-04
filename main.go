@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -202,7 +203,8 @@ func main() {
 	case "1.3":
 		httpsApp.TLSConfig.MinVersion = tls.VersionTLS13
 	default:
-		panic("unknown minimum tls version")
+		err = errors.New("unknown minimum tls version")
+		panic(err)
 	}
 
 	mgmtApp := &apps.MgmtApp{
