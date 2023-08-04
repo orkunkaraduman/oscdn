@@ -121,9 +121,8 @@ func main() {
 	}(_store)
 
 	handler := &cdn.Handler{
-		Logger:  logng.WithFieldKeyVals("logger", "cdn handler"),
-		Context: nil,
-		Store:   _store,
+		Logger: logng.WithFieldKeyVals("logger", "cdn handler"),
+		Store:  _store,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
 			domain, _, _ := httputil.SplitHostPort(host)
 			d, ok := _config.Domains[domain]
@@ -186,9 +185,9 @@ func main() {
 	}
 
 	mgmtApp := &apps.MgmtApp{
-		Logger:  logng.WithFieldKeyVals("logger", "mgmt app"),
-		Listen:  flags.Flags.Mgmt,
-		Handler: handler,
+		Logger: logng.WithFieldKeyVals("logger", "mgmt app"),
+		Listen: flags.Flags.Mgmt,
+		Store:  _store,
 	}
 
 	if !application.RunAll(appCtx, []application.Application{httpApp, httpsApp, mgmtApp}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
