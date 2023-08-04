@@ -57,8 +57,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.URL.Fragment != "" {
 		err = errors.New("invalid cdn url")
 		logger.V(1).Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(BodyInvalidCdnUrl))
+		http.Error(w, "invalid url", http.StatusBadRequest)
 		return
 	}
 
@@ -68,16 +67,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	default:
 		err = fmt.Errorf("method %s not allowed", req.Method)
 		logger.V(1).Error(err)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(BodyMethodNotAllowed))
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
 	contentRange, err := getContentRange(req.Header)
 	if err != nil {
 		logger.V(1).Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(BodyInvalidContentRange))
+		http.Error(w, "invalid content range", http.StatusBadRequest)
 		return
 	}
 
@@ -87,8 +84,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if hostConfig == nil {
 			err = errors.New("not allowed host")
 			logger.V(1).Error(err)
-			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte(BodyNotAllowedHost))
+			http.Error(w, "not allowed host", http.StatusForbidden)
 			return
 		}
 	}
@@ -110,9 +106,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if hostConfig.HttpsRedirectPort > 0 && hostConfig.HttpsRedirectPort != 443 {
 				storeURL.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
 			}
-			w.Header().Set("Location", storeURL.String())
-			w.WriteHeader(http.StatusFound)
-			_, _ = w.Write([]byte(BodyHttpsRedirect))
+			http.Redirect(w, req, storeURL.String(), http.StatusFound)
 			return
 		}
 
@@ -139,17 +133,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		switch err.(type) {
 		case *store.RequestError:
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = w.Write([]byte(BodyOriginNotResponding))
+			http.Error(w, "origin not responding", http.StatusBadGateway)
 		case *store.DynamicContentError:
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = w.Write([]byte(BodyDynamicContent))
+			http.Error(w, "dynamic content", http.StatusBadGateway)
 		case *store.SizeExceededError:
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = w.Write([]byte(BodyContentSizeExceeded))
+			http.Error(w, "content size exceeded", http.StatusBadGateway)
 		default:
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(BodyInternalServerError))
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 		return
 	}
