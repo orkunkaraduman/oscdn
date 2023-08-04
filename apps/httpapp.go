@@ -59,7 +59,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	logger.Infof("listening %q.", a.Listen)
 
 	var httpHandler http.Handler
-	httpHandler = a.Handler
+	httpHandler = http.HandlerFunc(a.httpHandler)
 	if a.HandleH2C {
 		httpHandler = h2c.NewHandler(http.HandlerFunc(a.httpHandler), &http2.Server{
 			MaxHandlers:                  0,
