@@ -14,6 +14,7 @@ import (
 	"github.com/goinsane/flagbind"
 	"github.com/goinsane/flagconf"
 	"github.com/goinsane/logng"
+	"github.com/goinsane/xcontext"
 
 	"github.com/orkunkaraduman/oscdn/apps"
 	"github.com/orkunkaraduman/oscdn/cdn"
@@ -77,11 +78,13 @@ func main() {
 	}
 	err = _config.Validate()
 	if err != nil {
-		logng.Errorf("config validate error: %w", err)
+		err = fmt.Errorf("config validate error: %w", err)
+		logng.Error(err)
 		return
 	}
 	certs, err := _config.TLSCertificates()
 	if err != nil {
+		err = fmt.Errorf("config get tls certificates error: %w", err)
 		logng.Error(err)
 		return
 	}
@@ -117,7 +120,9 @@ func main() {
 		return
 	}
 	defer func(s *store.Store) {
-		_ = s.Release()
+		if err != nil {
+			_ = s.Release()
+		}
 	}(_store)
 
 	handler := &cdn.Handler{
@@ -149,6 +154,21 @@ func main() {
 			result.Origin.Host = d.Origin
 			return result
 		},
+	}
+
+	mainApp := new(application.Instance)
+	mainApp.StartFunc = func(ctx xcontext.CancelableContext) {
+	}
+	mainApp.RunFunc = func(ctx xcontext.CancelableContext) {
+	}
+	mainApp.TerminateFunc = func(ctx context.Context) {
+	}
+	mainApp.StopFunc = func() {
+		err := _store.Release()
+		if err != nil {
+			err = fmt.Errorf("store release error: %w", err)
+			logng.Error(err)
+		}
 	}
 
 	httpApp := &apps.HttpApp{
@@ -191,7 +211,7 @@ func main() {
 		Store:  _store,
 	}
 
-	if !application.RunAll(appCtx, []application.Application{httpApp, httpsApp, mgmtApp}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
+	if !application.RunAll(appCtx, []application.Application{mainApp, httpApp, httpsApp, mgmtApp}, flags.Flags.TerminateTimeout, flags.Flags.QuitTimeout) {
 		logng.Error("quit timeout")
 	}
 	logng.Info("stopped.")
