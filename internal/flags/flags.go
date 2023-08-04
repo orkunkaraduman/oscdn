@@ -11,8 +11,8 @@ var Flags = &_Flags{}
 type _Flags struct {
 	Verbose          int           `default:"0"`
 	Debug            bool          `default:"false"`
-	TerminateTimeout time.Duration `default:"2m"`
-	QuitTimeout      time.Duration `default:"3m"`
+	TerminateTimeout time.Duration `default:"30s"`
+	QuitTimeout      time.Duration `default:"15s"`
 	Config           string        `default:"config.yaml"`
 	StorePath        string        `default:""`
 	MaxIdleConns     int           `default:"100"`
