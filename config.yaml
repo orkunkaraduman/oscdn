@@ -1,0 +1,67 @@
+origins:
+  speed.hetzner.de:
+    useHttps: true
+    maxSize: 0
+    maxAge: 60s
+    downloadBurst: 0
+    downloadRate: 0
+
+domains:
+  cdn.example.com:
+    tls:
+      cert: |
+        -----BEGIN CERTIFICATE-----
+        MIIDFTCCAf2gAwIBAgIUe6SAm0wNuzkfPn0Dri5Ri3Og+X0wDQYJKoZIhvcNAQEL
+        BQAwGjEYMBYGA1UEAwwPY2RuLmV4YW1wbGUuY29tMB4XDTIzMDgwMjE5MDUxMFoX
+        DTMzMDczMDE5MDUxMFowGjEYMBYGA1UEAwwPY2RuLmV4YW1wbGUuY29tMIIBIjAN
+        BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2GQT/eWeBjBf/bVQb8uKKsc7c+jC
+        6L/EjzFTh0ac7KQNWrF6ukiiV8cM6HdeLEziG0NlKdw6NTYH9GoysBBdbt50xdhB
+        VjRgqCUQQbY5PcFEeYkw77OOiWyGShURSfhZA/6n4t0MFOg0JK0qi916KWFBt1j4
+        50NX6NQx2dGAb31wfMGlWSkLF5qX7MyQnwvTBc/pMQtmsGtX10tNBxCUgIVivIMm
+        QwYCQVwFBL8frTDSQVuD4ElKxURK5fwS1cfzEST45daRa2MDTRJX32uwj60a2zMt
+        p9tejKpF40T5TttflZ1IH05/sMolpmd71YT0sDY7unmwviGJCjTW5DR/zQIDAQAB
+        o1MwUTAdBgNVHQ4EFgQU0qpqF94EwUoeo0h1dLJDrG1JfvYwHwYDVR0jBBgwFoAU
+        0qpqF94EwUoeo0h1dLJDrG1JfvYwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B
+        AQsFAAOCAQEAzPvcPSuE5wOWTdZcqmZMhsC6Dn2BXx8F8jEqY1BP8ISulmwyMrZ5
+        fKnCUNtEczBhqeFEfSlO7GNR4fEk1t5ukaPLijF+N3KYaNTLTpzFG04ZhwZIBEBq
+        4AIQp90lVFlIi09o+nU8jTA90+g2HQnfQfhn5Aqj17i0CK5I7bxRe/rz4hvoV451
+        ZixWUF01+wdeAEnOW65OWROAIY0VuXvF5bfY/wFlNUjHJRYdaO6gjudlesEfMhy8
+        zyqPmMS4woRLs86sV3ce7/Ws9SsdieDYXD8imTvNWv7CcnOa1YczgyEd5VVH6Ao+
+        MVUMKJYoE65uH582VP8iQTMsZV12LyAfDA==
+        -----END CERTIFICATE-----
+      key: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDYZBP95Z4GMF/9
+        tVBvy4oqxztz6MLov8SPMVOHRpzspA1asXq6SKJXxwzod14sTOIbQ2Up3Do1Ngf0
+        ajKwEF1u3nTF2EFWNGCoJRBBtjk9wUR5iTDvs46JbIZKFRFJ+FkD/qfi3QwU6DQk
+        rSqL3XopYUG3WPjnQ1fo1DHZ0YBvfXB8waVZKQsXmpfszJCfC9MFz+kxC2awa1fX
+        S00HEJSAhWK8gyZDBgJBXAUEvx+tMNJBW4PgSUrFRErl/BLVx/MRJPjl1pFrYwNN
+        Elffa7CPrRrbMy2n216MqkXjRPlO21+VnUgfTn+wyiWmZ3vVhPSwNju6ebC+IYkK
+        NNbkNH/NAgMBAAECggEADlI/st8RuiEh4tdI9cBhamFgAVTXVkyGBGAXju1qd1lU
+        +1Q7TIoZst62opZvDu/rsWUHFGH1H3TUlyWFw0dIZI0OhDjCyKMtmBNHFyippl+p
+        jRpthbLuU3c+Qze2IQO+iHG/+yP1p71fR7CHD1V4jBwmtROLYNFN+r47qmNsl6d1
+        EDCXbpQTkCy54bd+vw3LBRCDIeSCUuvQDxU3Zlol6kjpkFHMWfj6HdgBKih2Nfy2
+        SMwzIN1+9RHdAHYCS8+F/XAFzYh1ij9uaXmI58Crfl2bCJgqGPw3rocpn8177FQT
+        bDyjOsnG+kWPr0fX+rhnylvOhdA6YegaFpGY24LmNQKBgQD4O1anwijFGccR4TsP
+        iKjY8wfKjMr4lBhpG8pVOoRDQWKikVV8BPHF3eMCCmHjMCVjMSBRxOA1YZz6UAfI
+        Kt2BxhJ75ElA8H19kUNO3FhQnKzo1A/6q6eOGOGm3GZV1qjJKycrkzObnYCxzoDD
+        Wt+HqpknE+fLThPSsBs38beOkwKBgQDfKacSvrRQ7lt7d0u8sL5KZfV41okbtvzb
+        Ug0stTDCWoIgaESVtGjeFS3sh0VJhHxllwICG1+mjIHO63/bROzo3IModFVbjtj4
+        jECYBBqnw7f6CkEC68ab0fGq522s+6mH17rzRyTVCKSep7VgBQ12ZYwf+EU6PmNL
+        OURr+EZUHwKBgEF4PQmv7trVSqjPk6ksLQRTTPnCGoJnZOzL9Jh3/4xRgXdJB5fX
+        IgFC3W2bWWf3OdUojtKiL1RE84cddn/3tkZU/GkKs7tZ8m8c0fjJqs1QFVavH6vI
+        fD/BFjrRJHh9TjUImaMnhtQDPX8n7NQZcp0whIZG/LqlVBsccYFW0kfbAoGAK5NZ
+        kVp1oTv51xEDU/P7JFHmbdMOcL/5feX2tp0myTydHjDd+5F/zKW8EuyTBfj9xWSI
+        OtsXgVD8Y+guTiWWUR4F6ldU94zcJyRT1JswjUO1X/iymxxo6rJDC0knbFiz0Ne6
+        JJjmw0ZtxqEe1IIID+9iPjffZLEb+GtVRfPz36cCgYB1tllf5GLOmFaIf4zLhmIb
+        SRp7mnVsTc9LUD6POj8EFCTHoHn8SiOpeZGly6q0cosayojL4mQU7KbKjUOyvYGY
+        a0SOtg6yVQxZk+S/BiEBCSmo6iitpRkJocN959Sea0MBBZm8QjWl6JAdg2z2HaTl
+        s/R9niIbBUiKTF64JJESPg==
+        -----END PRIVATE KEY-----
+    origin: speed.hetzner.de
+    httpsRedirect: false
+    httpsRedirectPort: 0
+    domainOverride: false
+    ignoreQuery: false
+    uploadBurst: 0
+    uploadRate: 0
