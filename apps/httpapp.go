@@ -122,6 +122,7 @@ func (a *HttpApp) Terminate(ctx context.Context) {
 
 	if e := a.httpSrv.Shutdown(ctx); e != nil {
 		logger.Errorf("http server shutdown error: %w", e)
+		_ = a.httpSrv.Close()
 	}
 
 	logger.Info("terminated.")
