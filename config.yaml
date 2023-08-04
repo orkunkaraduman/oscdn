@@ -2,7 +2,7 @@ origins:
   speed.hetzner.de:
     useHttps: true
     maxSize: 0
-    maxAge: 60s
+    maxAge: 5m
     downloadBurst: 0
     downloadRate: 0
 
