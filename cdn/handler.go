@@ -21,6 +21,7 @@ import (
 type Handler struct {
 	Logger        *logng.Logger
 	Store         *store.Store
+	ServerHeader  string
 	GetHostConfig func(scheme, host string) *HostConfig
 }
 
@@ -48,6 +49,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.V(1).Error(err)
 		return
+	}
+
+	w.Header().Set("Server", "oscdn")
+	if h.ServerHeader != "" {
+		w.Header().Set("Server", h.ServerHeader)
 	}
 
 	if (req.URL.Scheme != "http" && req.URL.Scheme != "https") ||
