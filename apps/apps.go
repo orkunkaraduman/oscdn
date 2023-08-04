@@ -28,8 +28,8 @@ type HttpApp struct {
 	TLSConfig     *tls.Config
 	Handler       *cdn.Handler
 
-	logger *logng.Logger
-	wg     sync.WaitGroup
+	ctx xcontext.CancelableContext
+	wg  sync.WaitGroup
 
 	listener net.Listener
 	httpSrv  *http.Server
@@ -38,7 +38,9 @@ type HttpApp struct {
 func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	var err error
 
-	a.logger = a.Logger.WithFieldKeyVals("listen", a.Listen)
+	a.ctx = xcontext.WithCancelable2(context.Background())
+
+	logger := a.Logger
 
 	if a.ListenBacklog > 0 {
 		a.listener, err = (&tcplisten.Config{
@@ -51,16 +53,16 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 		a.listener, err = net.Listen("tcp4", a.Listen)
 	}
 	if err != nil {
-		a.logger.Errorf("listen error: %w", err)
+		logger.Errorf("listen error: %w", err)
 		ctx.Cancel()
 		return
 	}
-	a.logger.Infof("listening %q.", a.Listen)
+	logger.Infof("listening %q.", a.Listen)
 
 	var httpHandler http.Handler
 	httpHandler = a.Handler
 	if a.HandleH2C {
-		httpHandler = h2c.NewHandler(a.Handler, &http2.Server{
+		httpHandler = h2c.NewHandler(http.HandlerFunc(a.httpHandler), &http2.Server{
 			MaxHandlers:                  0,
 			MaxConcurrentStreams:         0,
 			MaxReadFrameSize:             0,
@@ -97,17 +99,19 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 }
 
 func (a *HttpApp) Run(ctx xcontext.CancelableContext) {
-	a.logger.Info("started.")
+	logger := a.Logger
+
+	logger.Info("started.")
 
 	if a.httpSrv.TLSConfig == nil {
 		if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
-			a.logger.Errorf("http serve error: %w", e)
+			logger.Errorf("http serve error: %w", e)
 			ctx.Cancel()
 			return
 		}
 	} else {
 		if e := a.httpSrv.ServeTLS(a.listener, "", ""); e != nil && e != http.ErrServerClosed {
-			a.logger.Errorf("https serve error: %w", e)
+			logger.Errorf("https serve error: %w", e)
 			ctx.Cancel()
 			return
 		}
@@ -115,30 +119,50 @@ func (a *HttpApp) Run(ctx xcontext.CancelableContext) {
 }
 
 func (a *HttpApp) Terminate(ctx context.Context) {
+	logger := a.Logger
+
 	if e := a.httpSrv.Shutdown(ctx); e != nil {
-		a.logger.Errorf("http server shutdown error: %w", e)
+		logger.Errorf("http server shutdown error: %w", e)
 	}
 
-	a.logger.Info("terminated.")
+	logger.Info("terminated.")
 }
 
 func (a *HttpApp) Stop() {
+	logger := a.Logger
+
+	a.ctx.Cancel()
+
 	if a.listener != nil {
 		_ = a.listener.Close()
 	}
-	a.Handler.Wait()
 
 	a.wg.Wait()
-	a.logger.Info("stopped.")
+	logger.Info("stopped.")
+}
+
+func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if p := recover(); p != nil {
+			logng.Fatal(p)
+		}
+	}()
+
+	a.wg.Add(1)
+	defer a.wg.Done()
+	if a.ctx.Err() != nil {
+		return
+	}
+
+	a.Handler.ServeHTTP(w, req)
 }
 
 type MgmtApp struct {
-	Logger  *logng.Logger
-	Listen  string
-	Handler *cdn.Handler
+	Logger *logng.Logger
+	Listen string
 
-	logger *logng.Logger
-	wg     sync.WaitGroup
+	ctx xcontext.CancelableContext
+	wg  sync.WaitGroup
 
 	listener     net.Listener
 	httpServeMux *http.ServeMux
@@ -148,22 +172,24 @@ type MgmtApp struct {
 func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	var err error
 
-	a.logger = a.Logger.WithFieldKeyVals("listen", a.Listen)
+	a.ctx = xcontext.WithCancelable2(context.Background())
+
+	logger := a.Logger
 
 	a.listener, err = net.Listen("tcp4", a.Listen)
 	if err != nil {
-		a.logger.Errorf("listen error: %w", err)
+		logger.Errorf("listen error: %w", err)
 		ctx.Cancel()
 		return
 	}
-	a.logger.Infof("listening %q.", a.Listen)
+	logger.Infof("listening %q.", a.Listen)
 
 	a.httpServeMux = new(http.ServeMux)
 	a.httpServeMux.Handle("/debug/", mgmtDebugMux)
 	a.httpServeMux.Handle("/metrics/", promhttp.Handler())
 
 	a.httpSrv = &http.Server{
-		Handler:           a.httpServeMux,
+		Handler:           http.HandlerFunc(a.httpHandler),
 		TLSConfig:         nil,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       65 * time.Second,
@@ -173,30 +199,54 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 }
 
 func (a *MgmtApp) Run(ctx xcontext.CancelableContext) {
-	a.logger.Info("started.")
+	logger := a.Logger
+
+	logger.Info("started.")
 
 	if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
-		a.logger.Errorf("http serve error: %w", e)
+		logger.Errorf("http serve error: %w", e)
 		ctx.Cancel()
 		return
 	}
 }
 
 func (a *MgmtApp) Terminate(ctx context.Context) {
+	logger := a.Logger
+
 	if e := a.httpSrv.Shutdown(ctx); e != nil {
-		a.logger.Errorf("http server shutdown error: %w", e)
+		logger.Errorf("http server shutdown error: %w", e)
 	}
 
-	a.logger.Info("terminated.")
+	logger.Info("terminated.")
 }
 
 func (a *MgmtApp) Stop() {
+	logger := a.Logger
+
+	a.ctx.Cancel()
+
 	if a.listener != nil {
 		_ = a.listener.Close()
 	}
 
 	a.wg.Wait()
-	a.logger.Info("stopped.")
+	logger.Info("stopped.")
+}
+
+func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if p := recover(); p != nil {
+			logng.Fatal(p)
+		}
+	}()
+
+	a.wg.Add(1)
+	defer a.wg.Done()
+	if a.ctx.Err() != nil {
+		return
+	}
+
+	a.httpServeMux.ServeHTTP(w, req)
 }
 
 var mgmtDebugMux = new(http.ServeMux)
