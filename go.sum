@@ -16,6 +16,8 @@ github.com/goinsane/ioshape v0.5.0 h1:irEEtMyb2/YdKlOvFPE7Krht3c8meNWFBNrB/HVB00
 github.com/goinsane/ioshape v0.5.0/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
 github.com/goinsane/ioshape v0.6.0 h1:GiQ3UQOa362beYp7rDF2j0ut3kE3DMD+VGYRXbZtrWY=
 github.com/goinsane/ioshape v0.6.0/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
+github.com/goinsane/ioshape v0.6.1 h1:1wfCG3YqsoKOA1WhWo0IvqIzF/8oZthAvP3ObGKu3bs=
+github.com/goinsane/ioshape v0.6.1/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
 github.com/goinsane/logng v0.3.0 h1:Qsw3Fqy/N5pV9/XxCGyGf1MDq+SY9+dmIpdqBrAJlY0=
 github.com/goinsane/logng v0.3.0/go.mod h1:VN3EnW6OAJVrhbW9BL+Jv5fUtkA7xjIGRYSXW5tXBuo=
 github.com/goinsane/xcontext v1.7.0 h1:Jz6Gh2WCOu/u84d2iCrPUMfOwFAKLfCDs4mLGTunN+8=
