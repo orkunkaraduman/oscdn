@@ -38,13 +38,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.URL.Host = strings.TrimSuffix(req.Host, ":443")
 	}
 
+	domain, _, _ := httputil.SplitHostPort(req.URL.Host)
 	remoteIP, _, _ := httputil.SplitHostPort(req.RemoteAddr)
 
 	logger := h.Logger.WithFieldKeyVals("requestScheme", req.URL.Scheme, "requestHost", req.URL.Host,
 		"requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr, "remoteIP", remoteIP)
 	ctx = context.WithValue(ctx, "logger", logger)
-
-	domain, _, _ := httputil.SplitHostPort(req.URL.Host)
 
 	err = ctx.Err()
 	if err != nil {
