@@ -106,7 +106,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if hostConfig.HttpsRedirectPort > 0 && hostConfig.HttpsRedirectPort != 443 {
 				storeURL.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
 			}
-			//http.Redirect(w, req, storeURL.String(), http.StatusFound)
+			w.Header().Set("Location", storeURL.String())
 			http.Error(w, http.StatusText(http.StatusFound), http.StatusFound)
 			return
 		}
