@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -59,7 +58,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		err = errors.New("invalid cdn url")
 		logger.V(1).Error(err)
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = io.Copy(w, strings.NewReader(BodyInvalidCdnUrl))
+		_, _ = w.Write([]byte(BodyInvalidCdnUrl))
 		return
 	}
 
@@ -70,7 +69,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		err = fmt.Errorf("method %s not allowed", req.Method)
 		logger.V(1).Error(err)
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = io.Copy(w, strings.NewReader(BodyMethodNotAllowed))
+		_, _ = w.Write([]byte(BodyMethodNotAllowed))
 		return
 	}
 
@@ -78,7 +77,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.V(1).Error(err)
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = io.Copy(w, strings.NewReader(BodyInvalidContentRange))
+		_, _ = w.Write([]byte(BodyInvalidContentRange))
 		return
 	}
 
@@ -88,8 +87,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if hostConfig == nil {
 			err = errors.New("not allowed host")
 			logger.V(1).Error(err)
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = io.Copy(w, strings.NewReader(BodyNotAllowedHost))
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(BodyNotAllowedHost))
 			return
 		}
 	}
@@ -113,7 +112,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			}
 			w.Header().Set("Location", storeURL.String())
 			w.WriteHeader(http.StatusFound)
-			_, _ = io.Copy(w, strings.NewReader(BodyHttpsRedirect))
+			_, _ = w.Write([]byte(BodyHttpsRedirect))
 			return
 		}
 
@@ -141,16 +140,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		switch err.(type) {
 		case *store.RequestError:
 			w.WriteHeader(http.StatusBadGateway)
-			_, _ = io.Copy(w, strings.NewReader(BodyOriginNotResponding))
+			_, _ = w.Write([]byte(BodyOriginNotResponding))
 		case *store.DynamicContentError:
 			w.WriteHeader(http.StatusBadGateway)
-			_, _ = io.Copy(w, strings.NewReader(BodyDynamicContent))
+			_, _ = w.Write([]byte(BodyDynamicContent))
 		case *store.SizeExceededError:
 			w.WriteHeader(http.StatusBadGateway)
-			_, _ = io.Copy(w, strings.NewReader(BodyContentSizeExceeded))
+			_, _ = w.Write([]byte(BodyContentSizeExceeded))
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = io.Copy(w, strings.NewReader(BodyInternalServerError))
+			_, _ = w.Write([]byte(BodyInternalServerError))
 		}
 		return
 	}
