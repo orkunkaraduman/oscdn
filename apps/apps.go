@@ -3,10 +3,12 @@ package apps
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/orkunkaraduman/oscdn/cdn"
+	"github.com/orkunkaraduman/oscdn/store"
 )
 
 type HttpApp struct {
@@ -160,6 +163,7 @@ func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 type MgmtApp struct {
 	Logger *logng.Logger
 	Listen string
+	Store  *store.Store
 
 	ctx xcontext.CancelableContext
 	wg  sync.WaitGroup
@@ -187,6 +191,7 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	a.httpServeMux = new(http.ServeMux)
 	a.httpServeMux.Handle("/debug/", mgmtDebugMux)
 	a.httpServeMux.Handle("/metrics/", promhttp.Handler())
+	a.httpServeMux.HandleFunc("/cdn/", a.cdnHandler)
 
 	a.httpSrv = &http.Server{
 		Handler:           http.HandlerFunc(a.httpHandler),
@@ -247,6 +252,54 @@ func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	a.httpServeMux.ServeHTTP(w, req)
+}
+
+func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
+	var err error
+
+	ctx := context.WithValue(a.ctx, "logger", a.Logger)
+
+	values, _ := url.ParseQuery(req.URL.RawQuery)
+
+	switch {
+
+	case req.RequestURI == "/cdn/purge":
+		if req.Method != http.MethodPost {
+			_, _ = w.Write([]byte(fmt.Sprintf("%s\n", http.StatusText(http.StatusMethodNotAllowed))))
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+		err = a.Store.Purge(ctx, values.Get("url"), values.Get("host"))
+		switch err {
+		case store.ErrNotExists:
+			_, _ = w.Write([]byte("content not exists"))
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			_, _ = w.Write([]byte("internal error"))
+			w.WriteHeader(http.StatusInternalServerError)
+		case nil:
+			_, _ = w.Write([]byte("content purged"))
+			w.WriteHeader(http.StatusOK)
+		}
+
+	case req.RequestURI == "/cdn/purge_host":
+		if req.Method != http.MethodPost {
+			_, _ = w.Write([]byte(fmt.Sprintf("%s\n", http.StatusText(http.StatusMethodNotAllowed))))
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+		err = a.Store.PurgeHost(ctx, values.Get("host"))
+		switch err {
+		case store.ErrNotExists:
+			_, _ = w.Write([]byte("host not exists"))
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			_, _ = w.Write([]byte("internal error"))
+			w.WriteHeader(http.StatusInternalServerError)
+		case nil:
+			_, _ = w.Write([]byte("host purged"))
+			w.WriteHeader(http.StatusOK)
+		}
+
+	}
 }
 
 var mgmtDebugMux = new(http.ServeMux)
