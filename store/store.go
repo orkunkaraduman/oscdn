@@ -471,7 +471,7 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 					return
 				}
 				return
-			case <-time.After(25 * time.Millisecond):
+			case <-time.After(time.Second / 16):
 			}
 		}
 	}()
@@ -852,7 +852,7 @@ func (s *Store) contentCleaner() {
 
 		select {
 		case <-ctx.Done():
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(time.Second / 4):
 		}
 	}
 }
@@ -895,7 +895,7 @@ func (s *Store) trashCleaner() {
 
 		select {
 		case <-ctx.Done():
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(time.Second / 4):
 		}
 	}
 }
