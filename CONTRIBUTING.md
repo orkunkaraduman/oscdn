@@ -40,11 +40,11 @@ git commit -m "Add my new feature"
 git push origin feature/my-new-feature
 ```
 
-- Create a Pull Request: Go to the original oscdn repository on GitHub and create a Pull Request (PR) from your branch. Make sure to provide a clear and detailed description of your changes in the PR.
+- Create a Pull Request: Go to the original oscdn repository on GitHub and create a Pull Request (PR) from your branch to develop branch. Make sure to provide a clear and detailed description of your changes in the PR.
 
 - Code Review: The project maintainers will review your PR. Please be patient during this process, and be prepared to address any feedback or requests for changes.
 
-- Merge and Release: If your PR is approved, it will be merged into the main branch, and your changes will be included in the next release.
+- Merge and Release: If your PR is approved, it will be merged into the develop branch, and your changes will be included in the next release.
 
 ## Reporting Issues
 
