@@ -49,3 +49,7 @@ oscdn is open-source software released under the [BSD 3-Clause License](https://
 
 We would like to thank the open-source community and the developers of the libraries and tools that oscdn depends on.
 Your contributions help make oscdn a reliable and powerful CDN solution.
+
+## Contact
+
+If you have any questions, suggestions, or need support, you can reach me at [ok@orkunkaraduman.com](mailto:ok@orkunkaraduman.com).
