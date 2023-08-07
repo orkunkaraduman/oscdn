@@ -38,8 +38,8 @@ Follow the steps below to get oscdn up and running on your server:
 ## Contributing
 
 We welcome contributions from the community to improve and expand oscdn's capabilities. If you find a bug, have a
-feature request, or want to contribute code, please follow our guidelines for contributing (CONTRIBUTING.md) and submit
-a pull request.
+feature request, or want to contribute code, please follow our guidelines for contributing
+([CONTRIBUTING.md](CONTRIBUTING.md)) and submit a pull request.
 
 ## License
 

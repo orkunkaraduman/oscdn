@@ -2,6 +2,10 @@
 
 Thank you for your interest in contributing to oscdn! We appreciate your help in making this project better. Before you start contributing, please take a moment to review the following guidelines to ensure a smooth and effective collaboration.
 
+## Code of Conduct
+
+Please review our [Code of Conduct](CODE_OF_CONDUCT.md) to understand the expected behavior in our community. We expect all contributors to adhere to these guidelines when participating in the project.
+
 ## How to Contribute
 
 Contributing to oscdn is a straightforward process. Here are the general steps to follow:
