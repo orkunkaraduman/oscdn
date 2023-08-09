@@ -91,7 +91,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 
 				if a.MaxConns > 0 && a.MaxConns < a.connCount {
 					_ = conn.Close()
-					logger.V(1).Error("max conns exceeded")
+					logger.Error("max conns exceeded")
 					break
 				}
 
