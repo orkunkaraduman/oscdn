@@ -24,7 +24,7 @@ type HttpApp struct {
 	Logger        *logng.Logger
 	Listen        string
 	ListenBacklog int
-	MaxConn       int32
+	MaxConns      int32
 	HandleH2C     bool
 	TLSConfig     *tls.Config
 	Handler       *cdn.Handler
@@ -89,7 +89,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 			case http.StateNew:
 				atomic.AddInt32(&a.connCount, 1)
 
-				if a.MaxConn > 0 && a.MaxConn < a.connCount {
+				if a.MaxConns > 0 && a.MaxConns < a.connCount {
 					_ = conn.Close()
 					break
 				}
