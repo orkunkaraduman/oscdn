@@ -29,7 +29,7 @@ Follow the steps below to get oscdn up and running on your server:
 
 1. Prerequisites: Ensure you have go with version 1.20 installed on your system.
 
-2. Installation: Install oscdn by running the following command: `go get github.com/orkunkaraduman/oscdn@latest`
+2. Installation: Install oscdn by running the following command: `go install github.com/orkunkaraduman/oscdn@latest`
 
 3. Configuration: You can view command-line flags and `config.yaml` at this time. 
 
