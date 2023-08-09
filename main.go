@@ -94,8 +94,8 @@ func main() {
 		Logger:       logng.WithFieldKeyVals("logger", "store"),
 		Path:         flags.Flags.StorePath,
 		TLSConfig:    nil,
-		MaxIdleConns: flags.Flags.MaxIdleConns,
-		UserAgent:    flags.Flags.UserAgent,
+		MaxIdleConns: flags.Flags.StoreMaxIdleConns,
+		UserAgent:    flags.Flags.StoreUserAgent,
 		DefaultHostConfig: &store.HostConfig{
 			MaxSize:       1024 * 1024 * 1024,
 			MaxAge:        24 * time.Hour,
