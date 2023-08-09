@@ -544,6 +544,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.Size = resp.ContentLength
 	data.Info.CreatedAt = now
 	data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
+	if hostConfig.MaxAge404 > 0 && resp.StatusCode == http.StatusNotFound {
+		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge404)
+	}
 
 	err = s.moveToTrash(data.Path)
 	if err != nil && !os.IsNotExist(err) {
@@ -558,8 +561,10 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		return nil, err
 	}
 
-	if expires := httputil.Expires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
-		data.Info.ExpiresAt = expires
+	if !hostConfig.MaxAgeOverride {
+		if expires := httputil.Expires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
+			data.Info.ExpiresAt = expires
+		}
 	}
 
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||

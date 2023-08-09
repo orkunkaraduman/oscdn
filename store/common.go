@@ -26,10 +26,12 @@ type Config struct {
 }
 
 type HostConfig struct {
-	MaxSize       int64
-	MaxAge        time.Duration
-	DownloadBurst int64
-	DownloadRate  int64
+	MaxSize        int64
+	MaxAge         time.Duration
+	MaxAge404      time.Duration
+	MaxAgeOverride bool
+	DownloadBurst  int64
+	DownloadRate   int64
 }
 
 type CacheStatus int
