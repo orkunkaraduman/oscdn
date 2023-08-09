@@ -543,7 +543,10 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.StatusCode = resp.StatusCode
 	data.Info.Size = resp.ContentLength
 	data.Info.CreatedAt = now
-	data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
+	data.Info.ExpiresAt = now
+	if hostConfig.MaxAge > 0 {
+		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
+	}
 	if hostConfig.MaxAge404 > 0 && resp.StatusCode == http.StatusNotFound {
 		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge404)
 	}
