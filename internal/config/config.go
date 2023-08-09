@@ -12,11 +12,13 @@ import (
 
 type Config struct {
 	Origins map[string]struct {
-		UseHttps      bool          `yaml:"useHttps"`
-		MaxSize       int64         `yaml:"maxSize"`
-		MaxAge        time.Duration `yaml:"maxAge"`
-		DownloadBurst int64         `yaml:"downloadBurst"`
-		DownloadRate  int64         `yaml:"downloadRate"`
+		UseHttps       bool          `yaml:"useHttps"`
+		MaxSize        int64         `yaml:"maxSize"`
+		MaxAge         time.Duration `yaml:"maxAge"`
+		MaxAge404      time.Duration `yaml:"maxAge404"`
+		MaxAgeOverride bool          `yaml:"maxAgeOverride"`
+		DownloadBurst  int64         `yaml:"downloadBurst"`
+		DownloadRate   int64         `yaml:"downloadRate"`
 	} `yaml:"origins"`
 	Domains map[string]struct {
 		TLS *struct {

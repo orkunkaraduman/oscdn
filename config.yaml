@@ -3,6 +3,8 @@ origins:
     useHttps: true
     maxSize: 0
     maxAge: 5m
+    maxAge404: 1m
+    maxAgeOverride: false
     downloadBurst: 0
     downloadRate: 0
 

@@ -108,10 +108,12 @@ func main() {
 				return nil
 			}
 			return &store.HostConfig{
-				MaxSize:       o.MaxSize,
-				MaxAge:        o.MaxAge,
-				DownloadBurst: o.DownloadBurst,
-				DownloadRate:  o.DownloadRate,
+				MaxSize:        o.MaxSize,
+				MaxAge:         o.MaxAge,
+				MaxAge404:      o.MaxAge404,
+				MaxAgeOverride: o.MaxAgeOverride,
+				DownloadBurst:  o.DownloadBurst,
+				DownloadRate:   o.DownloadRate,
 			}
 		},
 	})
