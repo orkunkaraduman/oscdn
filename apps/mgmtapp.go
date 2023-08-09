@@ -54,7 +54,9 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	a.httpSrv = &http.Server{
 		Handler:           http.HandlerFunc(a.httpHandler),
 		TLSConfig:         nil,
+		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 		ErrorLog:          log.New(io.Discard, "", log.LstdFlags),
@@ -98,9 +100,11 @@ func (a *MgmtApp) Stop() {
 }
 
 func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
+	logger := a.Logger
+
 	defer func() {
 		if p := recover(); p != nil {
-			logng.Fatal(p)
+			logger.Fatal(p)
 		}
 	}()
 

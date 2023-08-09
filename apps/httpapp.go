@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/goinsane/logng"
@@ -23,6 +24,7 @@ type HttpApp struct {
 	Logger        *logng.Logger
 	Listen        string
 	ListenBacklog int
+	MaxConn       int32
 	HandleH2C     bool
 	TLSConfig     *tls.Config
 	Handler       *cdn.Handler
@@ -32,6 +34,8 @@ type HttpApp struct {
 
 	listener net.Listener
 	httpSrv  *http.Server
+
+	connCount int32
 }
 
 func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
@@ -75,25 +79,38 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	a.httpSrv = &http.Server{
 		Handler:           httpHandler,
 		TLSConfig:         a.TLSConfig.Clone(),
+		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
-		ErrorLog:          log.New(io.Discard, "", log.LstdFlags),
-		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
-			var tcpConn *net.TCPConn
-			switch conn := c.(type) {
-			case *net.TCPConn:
-				tcpConn = conn
-			case *tls.Conn:
-				tcpConn = conn.NetConn().(*net.TCPConn)
-			default:
-				panic("unknown conn type")
+		ConnState: func(conn net.Conn, state http.ConnState) {
+			switch state {
+			case http.StateNew:
+				atomic.AddInt32(&a.connCount, 1)
+
+				if a.MaxConn > 0 && a.MaxConn < a.connCount {
+					_ = conn.Close()
+					break
+				}
+
+				var tcpConn *net.TCPConn
+				switch conn := conn.(type) {
+				case *net.TCPConn:
+					tcpConn = conn
+				case *tls.Conn:
+					tcpConn = conn.NetConn().(*net.TCPConn)
+				default:
+					panic("unknown conn type")
+				}
+				_ = tcpConn.SetLinger(-1)
+				_ = tcpConn.SetReadBuffer(128 * 1024)
+				_ = tcpConn.SetWriteBuffer(128 * 1024)
+			case http.StateClosed:
+				atomic.AddInt32(&a.connCount, -1)
 			}
-			_ = tcpConn.SetLinger(-1)
-			_ = tcpConn.SetReadBuffer(128 * 1024)
-			_ = tcpConn.SetWriteBuffer(128 * 1024)
-			return ctx
 		},
+		ErrorLog: log.New(io.Discard, "", log.LstdFlags),
 	}
 }
 
@@ -142,9 +159,11 @@ func (a *HttpApp) Stop() {
 }
 
 func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
+	logger := a.Logger
+
 	defer func() {
 		if p := recover(); p != nil {
-			logng.Fatal(p)
+			logger.Fatal(p)
 		}
 	}()
 
