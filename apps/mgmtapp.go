@@ -137,7 +137,7 @@ func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 		err = a.Store.Purge(ctx, values.Get("url"), values.Get("host"))
 		switch err {
 		case store.ErrNotExists:
-			http.Error(w, "content not exists", http.StatusGone)
+			http.Error(w, "content not exists", http.StatusNotFound)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		case nil:
@@ -152,7 +152,7 @@ func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 		err = a.Store.PurgeHost(ctx, values.Get("host"))
 		switch err {
 		case store.ErrNotExists:
-			http.Error(w, "host not exists", http.StatusGone)
+			http.Error(w, "host not exists", http.StatusNotFound)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		case nil:
@@ -173,7 +173,7 @@ func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 		}
 
 	default:
-		http.NotFound(w, req)
+		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 
 	}
 }
