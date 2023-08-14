@@ -94,8 +94,8 @@ func main() {
 		Logger:       logng.WithFieldKeyVals("logger", "store"),
 		Path:         flags.Flags.StorePath,
 		TLSConfig:    nil,
-		MaxIdleConns: flags.Flags.MaxIdleConns,
-		UserAgent:    flags.Flags.UserAgent,
+		MaxIdleConns: flags.Flags.StoreMaxIdleConns,
+		UserAgent:    flags.Flags.StoreUserAgent,
 		DefaultHostConfig: &store.HostConfig{
 			MaxSize:       1024 * 1024 * 1024,
 			MaxAge:        24 * time.Hour,
@@ -108,10 +108,12 @@ func main() {
 				return nil
 			}
 			return &store.HostConfig{
-				MaxSize:       o.MaxSize,
-				MaxAge:        o.MaxAge,
-				DownloadBurst: o.DownloadBurst,
-				DownloadRate:  o.DownloadRate,
+				MaxSize:        o.MaxSize,
+				MaxAge:         o.MaxAge,
+				MaxAge404:      o.MaxAge404,
+				MaxAgeOverride: o.MaxAgeOverride,
+				DownloadBurst:  o.DownloadBurst,
+				DownloadRate:   o.DownloadRate,
 			}
 		},
 	})
@@ -127,7 +129,6 @@ func main() {
 	}(_store)
 
 	handler := &cdn.Handler{
-		Logger:       logng.WithFieldKeyVals("logger", "cdn handler"),
 		Store:        _store,
 		ServerHeader: flags.Flags.ServerHeader,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
@@ -176,6 +177,7 @@ func main() {
 		Logger:        logng.WithFieldKeyVals("logger", "http app"),
 		Listen:        flags.Flags.Http,
 		ListenBacklog: flags.Flags.ListenBacklog,
+		MaxConns:      flags.Flags.MaxConns,
 		HandleH2C:     flags.Flags.HandleH2c,
 		TLSConfig:     nil,
 		Handler:       handler,
@@ -185,6 +187,7 @@ func main() {
 		Logger:        logng.WithFieldKeyVals("logger", "https app"),
 		Listen:        flags.Flags.Https,
 		ListenBacklog: flags.Flags.ListenBacklog,
+		MaxConns:      flags.Flags.MaxConns,
 		HandleH2C:     false,
 		TLSConfig: &tls.Config{
 			GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {

@@ -22,7 +22,7 @@ func getContentRange(h http.Header) (result *store.ContentRange, err error) {
 	}
 	b := opts[0].Parameters["bytes"]
 	if b == "" {
-		return nil, errors.New("unknown parameter")
+		return nil, nil
 	}
 	ranges := strings.SplitN(b, "-", 2)
 	result = &store.ContentRange{

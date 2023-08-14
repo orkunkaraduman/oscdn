@@ -383,7 +383,6 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 
 func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentRange, download chan struct{}) io.ReadCloser {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
-	_ = logger
 
 	if contentRange != nil {
 		if download != nil {
@@ -414,8 +413,6 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 		defer s.wg.Done()
 
 		var err error
-
-		logger, _ := s.ctx.Value("logger").(*logng.Logger)
 
 		defer func(data *Data) {
 			_ = data.Close()
@@ -474,7 +471,7 @@ func (s *Store) pipeData(ctx context.Context, data *Data, contentRange *ContentR
 					return
 				}
 				return
-			case <-time.After(25 * time.Millisecond):
+			case <-time.After(time.Second / 16):
 			}
 		}
 	}()
@@ -546,7 +543,13 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.StatusCode = resp.StatusCode
 	data.Info.Size = resp.ContentLength
 	data.Info.CreatedAt = now
-	data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
+	data.Info.ExpiresAt = now
+	if hostConfig.MaxAge > 0 {
+		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
+	}
+	if hostConfig.MaxAge404 > 0 && resp.StatusCode == http.StatusNotFound {
+		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge404)
+	}
 
 	err = s.moveToTrash(data.Path)
 	if err != nil && !os.IsNotExist(err) {
@@ -561,8 +564,10 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		return nil, err
 	}
 
-	if expires := httputil.Expires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
-		data.Info.ExpiresAt = expires
+	if !hostConfig.MaxAgeOverride {
+		if expires := httputil.Expires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
+			data.Info.ExpiresAt = expires
+		}
 	}
 
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
@@ -590,8 +595,6 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		defer s.wg.Done()
 
 		var err error
-
-		logger, _ := s.ctx.Value("logger").(*logng.Logger)
 
 		defer reqCtxCancel()
 
@@ -717,7 +720,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	logger = logger.WithFieldKeyVals("host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	if !hostRgx.MatchString(host) {
+	if host == "" || !hostRgx.MatchString(host) {
 		err = errors.New("invalid host")
 		return
 	}
@@ -751,6 +754,51 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	return nil
 }
 
+func (s *Store) PurgeAll(ctx context.Context) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	select {
+	case <-s.ctx.Done():
+		err = ErrStoreReleased
+		return
+	default:
+	}
+
+	dirs, err := os.ReadDir(s.contentPath)
+	if err != nil {
+		err = fmt.Errorf("unable to read content directory: %w", err)
+		logger.Error(err)
+		return
+	}
+
+	for _, dir := range dirs {
+		err = ctx.Err()
+		if err != nil {
+			break
+		}
+
+		if !dir.IsDir() {
+			continue
+		}
+
+		host := dir.Name()
+
+		if host == "" || !hostRgx.MatchString(host) {
+			continue
+		}
+
+		err = s.PurgeHost(ctx, host)
+		if err != nil {
+			if err == ErrNotExists {
+				continue
+			}
+			break
+		}
+	}
+
+	return
+}
+
 func (s *Store) contentCleaner() {
 	defer s.wg.Done()
 
@@ -760,13 +808,13 @@ func (s *Store) contentCleaner() {
 
 	for ctx.Err() == nil {
 		if e := fileutil.WalkDir(s.contentPath, func(subContentPath string, dirEntry fs.DirEntry) bool {
-			if !dirEntry.IsDir() {
-				return true
-			}
-
 			err = ctx.Err()
 			if err != nil {
 				return false
+			}
+
+			if !dirEntry.IsDir() {
+				return true
 			}
 
 			if !strings.HasSuffix(subContentPath, fmt.Sprintf("%cdata", os.PathSeparator)) {
@@ -857,7 +905,7 @@ func (s *Store) contentCleaner() {
 
 		select {
 		case <-ctx.Done():
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(time.Second / 4):
 		}
 	}
 }
@@ -889,7 +937,6 @@ func (s *Store) trashCleaner() {
 				return false
 			}
 			return true
-
 		}); e != nil {
 			e = fmt.Errorf("unable to walk trash directories: %w", e)
 			logger.Error(e)
@@ -900,7 +947,7 @@ func (s *Store) trashCleaner() {
 
 		select {
 		case <-ctx.Done():
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(time.Second / 4):
 		}
 	}
 }

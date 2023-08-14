@@ -34,7 +34,7 @@ type MgmtApp struct {
 func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	var err error
 
-	a.ctx = xcontext.WithCancelable2(context.Background())
+	a.ctx = xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", a.Logger))
 
 	logger := a.Logger
 
@@ -54,7 +54,9 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	a.httpSrv = &http.Server{
 		Handler:           http.HandlerFunc(a.httpHandler),
 		TLSConfig:         nil,
+		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 		ErrorLog:          log.New(io.Discard, "", log.LstdFlags),
@@ -98,25 +100,28 @@ func (a *MgmtApp) Stop() {
 }
 
 func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := a.ctx
+	logger := a.Logger
+
 	defer func() {
 		if p := recover(); p != nil {
-			logng.Fatal(p)
+			logger.Fatal(p)
 		}
 	}()
 
 	a.wg.Add(1)
 	defer a.wg.Done()
-	if a.ctx.Err() != nil {
+	if ctx.Err() != nil {
 		return
 	}
 
-	a.httpServeMux.ServeHTTP(w, req)
+	a.httpServeMux.ServeHTTP(w, req.WithContext(ctx))
 }
 
 func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 	var err error
 
-	ctx := context.WithValue(a.ctx, "logger", a.Logger)
+	ctx := req.Context()
 
 	values, _ := url.ParseQuery(req.URL.RawQuery)
 
@@ -133,7 +138,7 @@ func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 		err = a.Store.Purge(ctx, values.Get("url"), values.Get("host"))
 		switch err {
 		case store.ErrNotExists:
-			http.Error(w, "content not exists", http.StatusGone)
+			http.Error(w, "content not exists", http.StatusNotFound)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		case nil:
@@ -148,15 +153,28 @@ func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 		err = a.Store.PurgeHost(ctx, values.Get("host"))
 		switch err {
 		case store.ErrNotExists:
-			http.Error(w, "host not exists", http.StatusGone)
+			http.Error(w, "host not exists", http.StatusNotFound)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		case nil:
 			_, _ = fmt.Fprintln(w, "host purged")
 		}
 
+	case req.URL.Path == "/purge_all":
+		if req.Method != http.MethodPost {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			break
+		}
+		err = a.Store.PurgeAll(ctx)
+		switch err {
+		default:
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		case nil:
+			_, _ = fmt.Fprintln(w, "all purged")
+		}
+
 	default:
-		http.NotFound(w, req)
+		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 
 	}
 }
