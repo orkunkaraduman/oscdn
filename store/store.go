@@ -754,6 +754,42 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	return nil
 }
 
+func (s *Store) PurgeAll(ctx context.Context) (err error) {
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
+	select {
+	case <-s.ctx.Done():
+		err = ErrStoreReleased
+		return
+	default:
+	}
+
+	dirs, err := os.ReadDir(s.contentPath)
+	if err != nil {
+		err = fmt.Errorf("unable to read content directory: %w", err)
+		logger.Error(err)
+		return
+	}
+
+	for _, dir := range dirs {
+		err = ctx.Err()
+		if err != nil {
+			break
+		}
+
+		if !dir.IsDir() {
+			continue
+		}
+
+		err = s.PurgeHost(ctx, dir.Name())
+		if err != nil {
+			break
+		}
+	}
+
+	return
+}
+
 func (s *Store) contentCleaner() {
 	defer s.wg.Done()
 
@@ -763,13 +799,13 @@ func (s *Store) contentCleaner() {
 
 	for ctx.Err() == nil {
 		if e := fileutil.WalkDir(s.contentPath, func(subContentPath string, dirEntry fs.DirEntry) bool {
-			if !dirEntry.IsDir() {
-				return true
-			}
-
 			err = ctx.Err()
 			if err != nil {
 				return false
+			}
+
+			if !dirEntry.IsDir() {
+				return true
 			}
 
 			if !strings.HasSuffix(subContentPath, fmt.Sprintf("%cdata", os.PathSeparator)) {
@@ -892,7 +928,6 @@ func (s *Store) trashCleaner() {
 				return false
 			}
 			return true
-
 		}); e != nil {
 			e = fmt.Errorf("unable to walk trash directories: %w", e)
 			logger.Error(e)
