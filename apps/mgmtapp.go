@@ -159,6 +159,19 @@ func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 			_, _ = fmt.Fprintln(w, "host purged")
 		}
 
+	case req.URL.Path == "/purge_all":
+		if req.Method != http.MethodPost {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			break
+		}
+		err = a.Store.PurgeAll(ctx)
+		switch err {
+		default:
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		case nil:
+			_, _ = fmt.Fprintln(w, "all purged")
+		}
+
 	default:
 		http.NotFound(w, req)
 
