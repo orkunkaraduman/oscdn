@@ -720,7 +720,7 @@ func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	logger = logger.WithFieldKeyVals("host", host)
 	ctx = context.WithValue(ctx, "logger", logger)
 
-	if !hostRgx.MatchString(host) {
+	if host == "" || !hostRgx.MatchString(host) {
 		err = errors.New("invalid host")
 		return
 	}
@@ -781,7 +781,13 @@ func (s *Store) PurgeAll(ctx context.Context) (err error) {
 			continue
 		}
 
-		err = s.PurgeHost(ctx, dir.Name())
+		host := dir.Name()
+
+		if host == "" || !hostRgx.MatchString(host) {
+			continue
+		}
+
+		err = s.PurgeHost(ctx, host)
 		if err != nil {
 			break
 		}
