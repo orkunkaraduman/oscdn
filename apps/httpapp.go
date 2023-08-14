@@ -175,5 +175,5 @@ func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	a.Handler.ServeHTTPContext(ctx, w, req)
+	a.Handler.ServeHTTP(w, req.WithContext(ctx))
 }

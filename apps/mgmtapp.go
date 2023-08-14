@@ -115,13 +115,13 @@ func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	a.httpServeMux.ServeHTTP(w, req)
+	a.httpServeMux.ServeHTTP(w, req.WithContext(ctx))
 }
 
 func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 	var err error
 
-	ctx := a.ctx
+	ctx := req.Context()
 
 	values, _ := url.ParseQuery(req.URL.RawQuery)
 

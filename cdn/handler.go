@@ -25,12 +25,9 @@ type Handler struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	h.ServeHTTPContext(context.Background(), w, req)
-}
-
-func (h *Handler) ServeHTTPContext(ctx context.Context, w http.ResponseWriter, req *http.Request) {
 	var err error
 
+	ctx := req.Context()
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
 	if req.TLS == nil {
