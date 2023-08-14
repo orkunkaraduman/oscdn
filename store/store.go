@@ -789,6 +789,9 @@ func (s *Store) PurgeAll(ctx context.Context) (err error) {
 
 		err = s.PurgeHost(ctx, host)
 		if err != nil {
+			if err == ErrNotExists {
+				continue
+			}
 			break
 		}
 	}
