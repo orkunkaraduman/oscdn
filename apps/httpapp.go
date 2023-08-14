@@ -41,7 +41,7 @@ type HttpApp struct {
 func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	var err error
 
-	a.ctx = xcontext.WithCancelable2(context.Background())
+	a.ctx = xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", a.Logger))
 
 	logger := a.Logger
 
@@ -160,6 +160,7 @@ func (a *HttpApp) Stop() {
 }
 
 func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := a.ctx
 	logger := a.Logger
 
 	defer func() {
@@ -170,9 +171,9 @@ func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 
 	a.wg.Add(1)
 	defer a.wg.Done()
-	if a.ctx.Err() != nil {
+	if ctx.Err() != nil {
 		return
 	}
 
-	a.Handler.ServeHTTP(w, req)
+	a.Handler.ServeHTTPContext(ctx, w, req)
 }

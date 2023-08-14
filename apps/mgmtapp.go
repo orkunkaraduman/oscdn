@@ -34,7 +34,7 @@ type MgmtApp struct {
 func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	var err error
 
-	a.ctx = xcontext.WithCancelable2(context.Background())
+	a.ctx = xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", a.Logger))
 
 	logger := a.Logger
 
@@ -100,6 +100,7 @@ func (a *MgmtApp) Stop() {
 }
 
 func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := a.ctx
 	logger := a.Logger
 
 	defer func() {
@@ -110,7 +111,7 @@ func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 
 	a.wg.Add(1)
 	defer a.wg.Done()
-	if a.ctx.Err() != nil {
+	if ctx.Err() != nil {
 		return
 	}
 
@@ -120,7 +121,7 @@ func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
 	var err error
 
-	ctx := context.WithValue(a.ctx, "logger", a.Logger)
+	ctx := a.ctx
 
 	values, _ := url.ParseQuery(req.URL.RawQuery)
 
