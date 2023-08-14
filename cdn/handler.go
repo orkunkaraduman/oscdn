@@ -26,9 +26,11 @@ type Handler struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	var err error
+	h.ServeHTTPContext(context.Background(), w, req)
+}
 
-	ctx := context.Background()
+func (h *Handler) ServeHTTPContext(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+	var err error
 
 	if req.TLS == nil {
 		req.URL.Scheme = "http"
