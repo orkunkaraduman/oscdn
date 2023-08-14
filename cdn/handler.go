@@ -19,7 +19,6 @@ import (
 )
 
 type Handler struct {
-	Logger        *logng.Logger
 	Store         *store.Store
 	ServerHeader  string
 	GetHostConfig func(scheme, host string) *HostConfig
@@ -32,6 +31,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (h *Handler) ServeHTTPContext(ctx context.Context, w http.ResponseWriter, req *http.Request) {
 	var err error
 
+	logger, _ := ctx.Value("logger").(*logng.Logger)
+
 	if req.TLS == nil {
 		req.URL.Scheme = "http"
 		req.URL.Host = strings.TrimSuffix(req.Host, ":80")
@@ -43,7 +44,7 @@ func (h *Handler) ServeHTTPContext(ctx context.Context, w http.ResponseWriter, r
 	domain, _, _ := httputil.SplitHostPort(req.URL.Host)
 	remoteIP, _, _ := httputil.SplitHostPort(req.RemoteAddr)
 
-	logger := h.Logger.WithFieldKeyVals("requestScheme", req.URL.Scheme, "requestHost", req.URL.Host,
+	logger = logger.WithFieldKeyVals("requestScheme", req.URL.Scheme, "requestHost", req.URL.Host,
 		"requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr, "remoteIP", remoteIP)
 	ctx = context.WithValue(ctx, "logger", logger)
 
