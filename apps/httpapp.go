@@ -79,9 +79,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	a.httpSrv = &http.Server{
 		Handler:           httpHandler,
 		TLSConfig:         a.TLSConfig.Clone(),
-		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
-		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 		ConnState: func(conn net.Conn, state http.ConnState) {
