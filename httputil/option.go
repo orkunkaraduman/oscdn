@@ -1,47 +1,43 @@
 package httputil
 
 import (
-	"regexp"
 	"strings"
 )
 
 type Option struct {
-	Name       string
-	Parameters map[string]string
+	KeyVals []OptionKeyVal
+	Map     map[string]string
 }
 
-func ParseOptions(directive string) []*Option {
-	result := make([]*Option, 0, 128)
-	var option *Option
-	matches := optionRgx.FindAllString(directive, -1)
-	for _, match := range matches {
-		if strings.HasSuffix(match, ";") {
-			if option != nil {
-				result = append(result, option)
-			}
-			option = &Option{
-				Name:       strings.ToLower(strings.TrimSpace(strings.TrimSuffix(match, ";"))),
-				Parameters: make(map[string]string),
-			}
-			continue
-		}
-		if option == nil {
-			option = &Option{
-				Name:       "",
-				Parameters: make(map[string]string),
-			}
-		}
-		var key, value string
-		key = match
-		if index := strings.Index(match, "="); index != -1 {
-			key, value = match[:index], match[index+1:]
-		}
-		option.Parameters[strings.ToLower(key)] = strings.TrimSpace(value)
-	}
-	if option != nil {
-		result = append(result, option)
-	}
-	return result
+type OptionKeyVal struct {
+	Key string
+	Val string
 }
 
-var optionRgx = regexp.MustCompile(`([a-zA-Z][a-zA-Z_\-]*(?:\s*;)?)(?:=(?:"([^"]*)"|([^ \t",;]*)))?`)
+func ParseOptions(directive string) (options []Option) {
+	options = []Option{}
+
+	for _, o := range strings.Split(directive, ",") {
+		o = strings.TrimSpace(o)
+		option := &Option{
+			KeyVals: []OptionKeyVal{},
+			Map:     map[string]string{},
+		}
+		for _, kv := range strings.Split(o, ";") {
+			kvs := strings.SplitN(kv, "=", 2)
+			optionKeyVal := &OptionKeyVal{
+				Key: strings.TrimSpace(kvs[0]),
+			}
+			if len(kvs) > 1 {
+				optionKeyVal.Val = strings.TrimSpace(kvs[1])
+			}
+			option.KeyVals = append(option.KeyVals, *optionKeyVal)
+			if _, ok := option.Map[optionKeyVal.Key]; !ok {
+				option.Map[optionKeyVal.Key] = optionKeyVal.Val
+			}
+		}
+		options = append(options, *option)
+	}
+
+	return
+}
