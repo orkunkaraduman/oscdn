@@ -20,7 +20,7 @@ func getContentRange(h http.Header) (result *store.ContentRange, err error) {
 	if len(opts) <= 0 {
 		return nil, errors.New("no option")
 	}
-	b := opts[0].Parameters["bytes"]
+	b := opts[0].Map["bytes"]
 	if b == "" {
 		return nil, nil
 	}
