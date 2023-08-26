@@ -9,6 +9,7 @@ type HostConfig struct {
 	HttpsRedirectPort int
 	DomainOverride    bool
 	IgnoreQuery       bool
+	CompressMimeTypes []string
 	UploadBurst       int64
 	UploadRate        int64
 }

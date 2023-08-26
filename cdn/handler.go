@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -167,6 +168,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	w.Header().Set("Expires", getResult.ExpiresAt.Format(time.RFC1123))
+
+	writer, contentEncoding := contentEncoder(w, req.Header.Get("Accept-Encoding"))
+	if contentEncoding != "" {
+		w.Header().Set("Content-Encoding", contentEncoding)
+	}
+
 	if getResult.StatusCode != http.StatusOK || getResult.ContentRange == nil {
 		w.Header().Set("Content-Length", strconv.FormatInt(getResult.Size, 10))
 		w.WriteHeader(getResult.StatusCode)
@@ -188,7 +195,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			uploadBurst = hostConfig.UploadBurst
 			uploadRate = hostConfig.UploadRate
 		}
-		_, err = ioutil.CopyRate(w, getResult, uploadBurst, uploadRate)
+		_, err = ioutil.CopyRate(writer, getResult, uploadBurst, uploadRate)
+		if closer, ok := writer.(io.Closer); ok && err == nil {
+			err = closer.Close()
+		}
 	}
 	if err != nil {
 		err = fmt.Errorf("content upload error: %w", err)
