@@ -46,6 +46,15 @@ func getContentRange(h http.Header) (result *store.ContentRange, err error) {
 	return result, nil
 }
 
+func getContentEncoding(h http.Header) string {
+	ae := h.Get("Accept-Encoding")
+	if ae == "" {
+		return ""
+	}
+	opts := httputil.ParseOptions(ae)
+
+}
+
 func maskStatusCode(code int) string {
 	switch {
 	case 100 <= code && code <= 199:

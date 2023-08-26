@@ -178,6 +178,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusPartialContent)
 	}
 
+	r := getResult
+
 	switch req.Method {
 	case http.MethodHead:
 		err = nil
@@ -188,7 +190,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			uploadBurst = hostConfig.UploadBurst
 			uploadRate = hostConfig.UploadRate
 		}
-		_, err = ioutil.CopyRate(w, getResult, uploadBurst, uploadRate)
+		_, err = ioutil.CopyRate(w, r, uploadBurst, uploadRate)
 	}
 	if err != nil {
 		err = fmt.Errorf("content upload error: %w", err)
