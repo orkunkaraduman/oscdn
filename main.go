@@ -15,7 +15,6 @@ import (
 	"github.com/goinsane/flagbind"
 	"github.com/goinsane/flagconf"
 	"github.com/goinsane/logng"
-	"github.com/goinsane/xcontext"
 
 	"github.com/orkunkaraduman/oscdn/apps"
 	"github.com/orkunkaraduman/oscdn/cdn"
@@ -159,9 +158,9 @@ func main() {
 	}
 
 	mainApp := new(application.Instance)
-	mainApp.StartFunc = func(ctx xcontext.CancelableContext) {
+	mainApp.StartFunc = func(ctx context.Context, cancel context.CancelFunc) {
 	}
-	mainApp.RunFunc = func(ctx xcontext.CancelableContext) {
+	mainApp.RunFunc = func(ctx context.Context, cancel context.CancelFunc) {
 	}
 	mainApp.TerminateFunc = func(ctx context.Context) {
 	}
