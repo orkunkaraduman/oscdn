@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -195,6 +196,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			uploadRate = hostConfig.UploadRate
 		}
 		_, err = ioutil.CopyRate(writer, getResult, uploadBurst, uploadRate)
+		if closer, ok := writer.(io.Closer); ok && err == nil {
+			err = closer.Close()
+		}
 	}
 	if err != nil {
 		err = fmt.Errorf("content upload error: %w", err)

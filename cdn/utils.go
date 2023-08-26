@@ -1,9 +1,8 @@
 package cdn
 
 import (
+	"compress/flate"
 	"compress/gzip"
-	"compress/lzw"
-	"compress/zlib"
 	"errors"
 	"fmt"
 	"io"
@@ -61,18 +60,22 @@ func contentEncoder(dest io.Writer, acceptEncoding string) (writer io.Writer, co
 		case "gzip":
 			level := gzip.DefaultCompression
 			if q != nil {
-				level1 := int(*q)
-				if gzip.NoCompression <= level1 && level1 <= gzip.BestCompression {
-					level = level1
+				newLevel := int(*q)
+				if gzip.NoCompression <= newLevel && newLevel <= gzip.BestCompression {
+					level = newLevel
 				}
 			}
 			writer, _ = gzip.NewWriterLevel(dest, level)
 			return writer, key
-		case "compress":
-			writer = lzw.NewWriter(dest, lzw.LSB, 8)
-			return writer, key
 		case "deflate":
-			writer = zlib.NewWriter(dest)
+			level := flate.DefaultCompression
+			if q != nil {
+				newLevel := int(*q)
+				if flate.NoCompression <= newLevel && newLevel <= flate.BestCompression {
+					level = newLevel
+				}
+			}
+			writer, _ = flate.NewWriter(dest, level)
 			return writer, key
 		}
 	}
