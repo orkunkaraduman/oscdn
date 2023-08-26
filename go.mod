@@ -3,12 +3,12 @@ module github.com/orkunkaraduman/oscdn
 go 1.20
 
 require (
-	github.com/goinsane/application v1.5.1
+	github.com/goinsane/application v1.6.1
 	github.com/goinsane/filelock v0.2.1
 	github.com/goinsane/flagbind v0.2.1
 	github.com/goinsane/flagconf v0.2.0
 	github.com/goinsane/ioshape v0.6.2
-	github.com/goinsane/logng v0.3.0
+	github.com/goinsane/logng v1.0.0
 	github.com/goinsane/xcontext v1.7.0
 	github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang v1.16.0
