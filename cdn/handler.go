@@ -167,6 +167,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	w.Header().Set("Expires", getResult.ExpiresAt.Format(time.RFC1123))
+
+	writer, contentEncoding := contentEncoder(w, req.Header.Get("Accept-Encoding"))
+	if contentEncoding != "" {
+		w.Header().Set("Content-Encoding", contentEncoding)
+	}
+
 	if getResult.StatusCode != http.StatusOK || getResult.ContentRange == nil {
 		w.Header().Set("Content-Length", strconv.FormatInt(getResult.Size, 10))
 		w.WriteHeader(getResult.StatusCode)
@@ -178,8 +184,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusPartialContent)
 	}
 
-	r := getResult
-
 	switch req.Method {
 	case http.MethodHead:
 		err = nil
@@ -190,7 +194,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			uploadBurst = hostConfig.UploadBurst
 			uploadRate = hostConfig.UploadRate
 		}
-		_, err = ioutil.CopyRate(w, r, uploadBurst, uploadRate)
+		_, err = ioutil.CopyRate(writer, getResult, uploadBurst, uploadRate)
 	}
 	if err != nil {
 		err = fmt.Errorf("content upload error: %w", err)

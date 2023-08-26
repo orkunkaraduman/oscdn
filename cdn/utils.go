@@ -1,8 +1,12 @@
 package cdn
 
 import (
+	"compress/gzip"
+	"compress/lzw"
+	"compress/zlib"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -46,13 +50,33 @@ func getContentRange(h http.Header) (result *store.ContentRange, err error) {
 	return result, nil
 }
 
-func getContentEncoding(h http.Header) string {
-	ae := h.Get("Accept-Encoding")
-	if ae == "" {
-		return ""
+func contentEncoder(dest io.Writer, acceptEncoding string) (writer io.Writer, contentEncoding string) {
+	writer = dest
+	for _, opt := range httputil.ParseOptions(acceptEncoding) {
+		var q *float64
+		if f, e := strconv.ParseFloat(opt.Map["q"], 64); e == nil {
+			q = &f
+		}
+		switch key := opt.KeyVals[0].Key; key {
+		case "gzip":
+			level := gzip.DefaultCompression
+			if q != nil {
+				level1 := int(*q)
+				if gzip.NoCompression <= level1 && level1 <= gzip.BestCompression {
+					level = level1
+				}
+			}
+			writer, _ = gzip.NewWriterLevel(dest, level)
+			return writer, key
+		case "compress":
+			writer = lzw.NewWriter(dest, lzw.LSB, 8)
+			return writer, key
+		case "deflate":
+			writer = zlib.NewWriter(dest)
+			return writer, key
+		}
 	}
-	opts := httputil.ParseOptions(ae)
-
+	return
 }
 
 func maskStatusCode(code int) string {
