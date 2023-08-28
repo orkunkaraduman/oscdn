@@ -13,7 +13,7 @@ func ParseCacheControl(directive string) CacheControl {
 	if len(opts) <= 0 {
 		return nil
 	}
-	return opts[0].Parameters
+	return opts[0].Map
 }
 
 func (c CacheControl) MaxAge() time.Duration {

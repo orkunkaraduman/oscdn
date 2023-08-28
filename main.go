@@ -15,7 +15,6 @@ import (
 	"github.com/goinsane/flagbind"
 	"github.com/goinsane/flagconf"
 	"github.com/goinsane/logng"
-	"github.com/goinsane/xcontext"
 
 	"github.com/orkunkaraduman/oscdn/apps"
 	"github.com/orkunkaraduman/oscdn/cdn"
@@ -97,10 +96,8 @@ func main() {
 		MaxIdleConns: flags.Flags.StoreMaxIdleConns,
 		UserAgent:    flags.Flags.StoreUserAgent,
 		DefaultHostConfig: &store.HostConfig{
-			MaxSize:       1024 * 1024 * 1024,
-			MaxAge:        24 * time.Hour,
-			DownloadBurst: 0,
-			DownloadRate:  0,
+			MaxSize: 1024 * 1024 * 1024,
+			MaxAge:  24 * time.Hour,
 		},
 		GetHostConfig: func(scheme, host string) *store.HostConfig {
 			o, ok := _config.Origins[host]
@@ -132,8 +129,8 @@ func main() {
 		Store:        _store,
 		ServerHeader: flags.Flags.ServerHeader,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
-			domain, _, _ := httputil.SplitHostPort(host)
-			d, ok := _config.Domains[domain]
+			pureHost, _, _ := httputil.SplitHost(host)
+			d, ok := _config.Hosts[pureHost]
 			if !ok {
 				return nil
 			}
@@ -142,12 +139,13 @@ func main() {
 				return nil
 			}
 			result := &cdn.HostConfig{
-				HttpsRedirect:     d.HttpsRedirect,
-				HttpsRedirectPort: d.HttpsRedirectPort,
-				DomainOverride:    d.DomainOverride,
-				IgnoreQuery:       d.IgnoreQuery,
-				UploadBurst:       d.UploadBurst,
-				UploadRate:        d.UploadRate,
+				HttpsRedirect:      d.HttpsRedirect,
+				HttpsRedirectPort:  d.HttpsRedirectPort,
+				HostOverride:       d.HostOverride,
+				IgnoreQuery:        d.IgnoreQuery,
+				CompressionMaxSize: d.CompressionMaxSize,
+				UploadBurst:        d.UploadBurst,
+				UploadRate:         d.UploadRate,
 			}
 			result.Origin.Scheme = "http"
 			if o.UseHttps {
@@ -159,9 +157,9 @@ func main() {
 	}
 
 	mainApp := new(application.Instance)
-	mainApp.StartFunc = func(ctx xcontext.CancelableContext) {
+	mainApp.StartFunc = func(ctx context.Context, cancel context.CancelFunc) {
 	}
-	mainApp.RunFunc = func(ctx xcontext.CancelableContext) {
+	mainApp.RunFunc = func(ctx context.Context, cancel context.CancelFunc) {
 	}
 	mainApp.TerminateFunc = func(ctx context.Context) {
 	}

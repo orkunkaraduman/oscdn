@@ -5,14 +5,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
-func SplitHostPort(host string) (domain string, port int, err error) {
-	domain = host
-	if idx := strings.LastIndex(host, ":"); idx >= 0 {
-		domain = host[:idx]
-		sPort := host[idx+1:]
+func SplitHost(addr string) (host string, port int, err error) {
+	host = addr
+	if idx := strings.LastIndex(addr, ":"); idx >= 0 {
+		host = addr[:idx]
+		sPort := addr[idx+1:]
 		var uPort uint64
 		uPort, err = strconv.ParseUint(sPort, 10, 16)
 		if err != nil {
@@ -24,32 +23,20 @@ func SplitHostPort(host string) (domain string, port int, err error) {
 	return
 }
 
-func Expires(header http.Header, now time.Time) (expires time.Time) {
-	if !now.After(*new(time.Time)) {
-		panic("invalid now")
+func GetRealIP(req *http.Request) string {
+	var v string
+
+	v = req.Header.Get("X-Real-IP")
+	if v != "" {
+		return v
 	}
 
-	hasCacheControl := false
-	if h := header.Get("Cache-Control"); h != "" {
-		hasCacheControl = true
-		cc := ParseCacheControl(h)
-		maxAge := cc.MaxAge()
-		if maxAge < 0 {
-			maxAge = cc.SMaxAge()
-		}
-		switch {
-		case cc.NoCache():
-		case maxAge >= 0:
-			expires = now.Add(maxAge)
-		}
+	v = strings.TrimSpace(strings.Split(req.Header.Get("X-Forwarded-For"), ",")[0])
+	if v != "" {
+		return v
 	}
 
-	if h := header.Get("Expires"); h != "" && !hasCacheControl {
-		expires, _ = time.Parse(time.RFC1123, h)
-		if expires.Before(now) {
-			expires = now
-		}
-	}
+	host, _, _ := SplitHost(req.Host)
 
-	return
+	return host
 }

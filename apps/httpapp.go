@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/goinsane/logng"
-	"github.com/goinsane/xcontext"
 	"github.com/valyala/tcplisten"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -29,8 +28,7 @@ type HttpApp struct {
 	TLSConfig     *tls.Config
 	Handler       *cdn.Handler
 
-	ctx xcontext.CancelableContext
-	wg  sync.WaitGroup
+	wg sync.WaitGroup
 
 	listener net.Listener
 	httpSrv  *http.Server
@@ -38,12 +36,11 @@ type HttpApp struct {
 	connCount int32
 }
 
-func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
+func (a *HttpApp) Start(ctx context.Context, cancel context.CancelFunc) {
 	var err error
 
-	a.ctx = xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", a.Logger))
-
 	logger := a.Logger
+	ctx = context.WithValue(ctx, "logger", a.Logger)
 
 	if a.ListenBacklog > 0 {
 		a.listener, err = (&tcplisten.Config{
@@ -57,7 +54,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	}
 	if err != nil {
 		logger.Errorf("listen error: %w", err)
-		ctx.Cancel()
+		cancel()
 		return
 	}
 	logger.Infof("listening %q.", a.Listen)
@@ -79,9 +76,7 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	a.httpSrv = &http.Server{
 		Handler:           httpHandler,
 		TLSConfig:         a.TLSConfig.Clone(),
-		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
-		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 		ConnState: func(conn net.Conn, state http.ConnState) {
@@ -115,21 +110,22 @@ func (a *HttpApp) Start(ctx xcontext.CancelableContext) {
 	}
 }
 
-func (a *HttpApp) Run(ctx xcontext.CancelableContext) {
+func (a *HttpApp) Run(ctx context.Context, cancel context.CancelFunc) {
 	logger := a.Logger
+	ctx = context.WithValue(ctx, "logger", a.Logger)
 
 	logger.Info("started.")
 
 	if a.httpSrv.TLSConfig == nil {
 		if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
 			logger.Errorf("http serve error: %w", e)
-			ctx.Cancel()
+			cancel()
 			return
 		}
 	} else {
 		if e := a.httpSrv.ServeTLS(a.listener, "", ""); e != nil && e != http.ErrServerClosed {
 			logger.Errorf("https serve error: %w", e)
-			ctx.Cancel()
+			cancel()
 			return
 		}
 	}
@@ -149,8 +145,6 @@ func (a *HttpApp) Terminate(ctx context.Context) {
 func (a *HttpApp) Stop() {
 	logger := a.Logger
 
-	a.ctx.Cancel()
-
 	if a.listener != nil {
 		_ = a.listener.Close()
 	}
@@ -160,7 +154,6 @@ func (a *HttpApp) Stop() {
 }
 
 func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
-	ctx := a.ctx
 	logger := a.Logger
 
 	defer func() {
@@ -171,9 +164,6 @@ func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 
 	a.wg.Add(1)
 	defer a.wg.Done()
-	if ctx.Err() != nil {
-		return
-	}
 
-	a.Handler.ServeHTTP(w, req.WithContext(ctx))
+	a.Handler.ServeHTTP(w, req.WithContext(context.WithValue(req.Context(), "logger", logger)))
 }

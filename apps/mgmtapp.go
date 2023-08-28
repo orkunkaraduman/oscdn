@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/goinsane/logng"
-	"github.com/goinsane/xcontext"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/orkunkaraduman/oscdn/store"
@@ -23,25 +22,23 @@ type MgmtApp struct {
 	Listen string
 	Store  *store.Store
 
-	ctx xcontext.CancelableContext
-	wg  sync.WaitGroup
+	wg sync.WaitGroup
 
 	listener     net.Listener
 	httpServeMux *http.ServeMux
 	httpSrv      *http.Server
 }
 
-func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
+func (a *MgmtApp) Start(ctx context.Context, cancel context.CancelFunc) {
 	var err error
 
-	a.ctx = xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", a.Logger))
-
 	logger := a.Logger
+	ctx = context.WithValue(ctx, "logger", a.Logger)
 
 	a.listener, err = net.Listen("tcp4", a.Listen)
 	if err != nil {
 		logger.Errorf("listen error: %w", err)
-		ctx.Cancel()
+		cancel()
 		return
 	}
 	logger.Infof("listening %q.", a.Listen)
@@ -49,28 +46,27 @@ func (a *MgmtApp) Start(ctx xcontext.CancelableContext) {
 	a.httpServeMux = new(http.ServeMux)
 	a.httpServeMux.Handle("/debug/", mgmtDebugMux)
 	a.httpServeMux.Handle("/metrics/", promhttp.Handler())
-	a.httpServeMux.Handle("/cdn/", http.StripPrefix("/cdn", http.HandlerFunc(a.cdnHandler)))
+	a.httpServeMux.Handle("/mgmt/", http.StripPrefix("/mgmt", http.HandlerFunc(a.mgmtHandler)))
 
 	a.httpSrv = &http.Server{
 		Handler:           http.HandlerFunc(a.httpHandler),
 		TLSConfig:         nil,
-		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
-		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       65 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 		ErrorLog:          log.New(io.Discard, "", log.LstdFlags),
 	}
 }
 
-func (a *MgmtApp) Run(ctx xcontext.CancelableContext) {
+func (a *MgmtApp) Run(ctx context.Context, cancel context.CancelFunc) {
 	logger := a.Logger
+	ctx = context.WithValue(ctx, "logger", a.Logger)
 
 	logger.Info("started.")
 
 	if e := a.httpSrv.Serve(a.listener); e != nil && e != http.ErrServerClosed {
 		logger.Errorf("http serve error: %w", e)
-		ctx.Cancel()
+		cancel()
 		return
 	}
 }
@@ -89,8 +85,6 @@ func (a *MgmtApp) Terminate(ctx context.Context) {
 func (a *MgmtApp) Stop() {
 	logger := a.Logger
 
-	a.ctx.Cancel()
-
 	if a.listener != nil {
 		_ = a.listener.Close()
 	}
@@ -100,7 +94,6 @@ func (a *MgmtApp) Stop() {
 }
 
 func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
-	ctx := a.ctx
 	logger := a.Logger
 
 	defer func() {
@@ -111,14 +104,11 @@ func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
 
 	a.wg.Add(1)
 	defer a.wg.Done()
-	if ctx.Err() != nil {
-		return
-	}
 
-	a.httpServeMux.ServeHTTP(w, req.WithContext(ctx))
+	a.httpServeMux.ServeHTTP(w, req.WithContext(context.WithValue(req.Context(), "logger", logger)))
 }
 
-func (a *MgmtApp) cdnHandler(w http.ResponseWriter, req *http.Request) {
+func (a *MgmtApp) mgmtHandler(w http.ResponseWriter, req *http.Request) {
 	var err error
 
 	ctx := req.Context()

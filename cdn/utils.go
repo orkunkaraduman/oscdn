@@ -1,50 +1,9 @@
 package cdn
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
-
-	"github.com/orkunkaraduman/oscdn/httputil"
-	"github.com/orkunkaraduman/oscdn/store"
 )
-
-func getContentRange(h http.Header) (result *store.ContentRange, err error) {
-	r := h.Get("Range")
-	if r == "" {
-		return nil, nil
-	}
-	opts := httputil.ParseOptions(r)
-	if len(opts) <= 0 {
-		return nil, errors.New("no option")
-	}
-	b := opts[0].Parameters["bytes"]
-	if b == "" {
-		return nil, nil
-	}
-	ranges := strings.SplitN(b, "-", 2)
-	result = &store.ContentRange{
-		Start: 0,
-		End:   -1,
-	}
-	if len(ranges) > 0 && ranges[0] != "" {
-		result.Start, err = strconv.ParseInt(ranges[0], 10, 64)
-		if err != nil {
-			err = fmt.Errorf("unable to parse content range start: %w", err)
-			return nil, err
-		}
-	}
-	if len(ranges) > 1 && ranges[1] != "" {
-		result.End, err = strconv.ParseInt(ranges[1], 10, 64)
-		if err != nil {
-			err = fmt.Errorf("unable to parse content range end: %w", err)
-			return nil, err
-		}
-	}
-	return result, nil
-}
 
 func maskStatusCode(code int) string {
 	switch {

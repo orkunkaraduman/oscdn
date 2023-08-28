@@ -39,10 +39,33 @@ func CopyRate(dst io.Writer, src io.Reader, burst, rate int64) (written int64, e
 	return written, nil
 }
 
-type NopReader struct {
+func NopWriteCloser(w io.Writer) io.WriteCloser {
+	if _, ok := w.(io.ReaderFrom); ok {
+		return nopWriteCloserReaderFrom{w}
+	}
+	return nopWriteCloser{w}
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error { return nil }
+
+type nopWriteCloserReaderFrom struct {
+	io.Writer
+}
+
+func (nopWriteCloserReaderFrom) Close() error { return nil }
+
+func (c nopWriteCloserReaderFrom) WriteTo(r io.Reader) (n int64, err error) {
+	return c.Writer.(io.ReaderFrom).ReadFrom(r)
+}
+
+type ErrorReader struct {
 	Err error
 }
 
-func (r *NopReader) Read(p []byte) (n int, err error) {
+func (r *ErrorReader) Read(p []byte) (n int, err error) {
 	return 0, r.Err
 }

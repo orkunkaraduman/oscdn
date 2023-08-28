@@ -18,17 +18,16 @@ import (
 
 	"github.com/goinsane/filelock"
 	"github.com/goinsane/logng"
-	"github.com/goinsane/xcontext"
 	"github.com/google/uuid"
 
 	"github.com/orkunkaraduman/oscdn/fileutil"
-	"github.com/orkunkaraduman/oscdn/httputil"
 	"github.com/orkunkaraduman/oscdn/ioutil"
 	"github.com/orkunkaraduman/oscdn/namedlock"
 )
 
 type Store struct {
-	ctx         xcontext.CancelableContext
+	ctx         context.Context
+	cancel      context.CancelFunc
 	wg          sync.WaitGroup
 	releaseOnce sync.Once
 
@@ -58,8 +57,11 @@ func New(config Config) (result *Store, err error) {
 		config.UserAgent = "oscdn"
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	ctx = context.WithValue(ctx, "logger", config.Logger)
 	s := &Store{
-		ctx:    xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", config.Logger)),
+		ctx:    ctx,
+		cancel: cancel,
 		config: config,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
@@ -131,7 +133,7 @@ func New(config Config) (result *Store, err error) {
 
 func (s *Store) Release() (err error) {
 	s.releaseOnce.Do(func() {
-		s.ctx.Cancel()
+		s.cancel()
 		s.wg.Wait()
 		if e := s.lockFile.Release(); e != nil && err == nil {
 			err = fmt.Errorf("unable to release store lock: %w", e)
@@ -228,7 +230,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 		contentRangeNew = &(*contentRange)
 	}
 
-	result.ReadCloser = io.NopCloser(&ioutil.NopReader{Err: io.EOF})
+	result.ReadCloser = io.NopCloser(&ioutil.ErrorReader{Err: io.EOF})
 
 	baseURL, keyURL, err := s.getURLs(rawURL, host)
 	if err != nil {
@@ -565,7 +567,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	}
 
 	if !hostConfig.MaxAgeOverride {
-		if expires := httputil.Expires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
+		if expires := httpExpires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
 			data.Info.ExpiresAt = expires
 		}
 	}

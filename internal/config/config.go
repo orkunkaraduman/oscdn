@@ -20,19 +20,20 @@ type Config struct {
 		DownloadBurst  int64         `yaml:"downloadBurst"`
 		DownloadRate   int64         `yaml:"downloadRate"`
 	} `yaml:"origins"`
-	Domains map[string]struct {
+	Hosts map[string]struct {
 		TLS *struct {
 			Cert string `yaml:"cert"`
 			Key  string `yaml:"key"`
 		} `yaml:"tls"`
-		Origin            string `yaml:"origin"`
-		HttpsRedirect     bool   `yaml:"httpsRedirect"`
-		HttpsRedirectPort int    `yaml:"httpsRedirectPort"`
-		DomainOverride    bool   `yaml:"domainOverride"`
-		IgnoreQuery       bool   `yaml:"ignoreQuery"`
-		UploadBurst       int64  `yaml:"uploadBurst"`
-		UploadRate        int64  `yaml:"uploadRate"`
-	} `yaml:"domains"`
+		Origin             string `yaml:"origin"`
+		HttpsRedirect      bool   `yaml:"httpsRedirect"`
+		HttpsRedirectPort  int    `yaml:"httpsRedirectPort"`
+		HostOverride       bool   `yaml:"hostOverride"`
+		IgnoreQuery        bool   `yaml:"ignoreQuery"`
+		CompressionMaxSize int64  `yaml:"compressionMaxSize"`
+		UploadBurst        int64  `yaml:"uploadBurst"`
+		UploadRate         int64  `yaml:"uploadRate"`
+	} `yaml:"hosts"`
 }
 
 func New(r io.Reader) (c *Config, err error) {
@@ -59,7 +60,7 @@ func FromFile(name string) (c *Config, err error) {
 }
 
 func (c *Config) Validate() error {
-	for k, d := range c.Domains {
+	for k, d := range c.Hosts {
 		if _, ok := c.Origins[d.Origin]; !ok {
 			return fmt.Errorf("unknown origin %q for %q", d.Origin, k)
 		}
@@ -68,8 +69,8 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) TLSCertificates() (certs map[string]*tls.Certificate, err error) {
-	certs = make(map[string]*tls.Certificate, len(c.Domains))
-	for k, d := range c.Domains {
+	certs = make(map[string]*tls.Certificate, len(c.Hosts))
+	for k, d := range c.Hosts {
 		if d.TLS == nil {
 			continue
 		}
