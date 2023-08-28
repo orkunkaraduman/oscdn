@@ -22,7 +22,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/orkunkaraduman/oscdn/fileutil"
-	"github.com/orkunkaraduman/oscdn/httputil"
 	"github.com/orkunkaraduman/oscdn/ioutil"
 	"github.com/orkunkaraduman/oscdn/namedlock"
 )
@@ -565,7 +564,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	}
 
 	if !hostConfig.MaxAgeOverride {
-		if expires := httputil.Expires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
+		if expires := httpExpires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
 			data.Info.ExpiresAt = expires
 		}
 	}
