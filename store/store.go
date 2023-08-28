@@ -18,7 +18,6 @@ import (
 
 	"github.com/goinsane/filelock"
 	"github.com/goinsane/logng"
-	"github.com/goinsane/xcontext"
 	"github.com/google/uuid"
 
 	"github.com/orkunkaraduman/oscdn/fileutil"
@@ -27,7 +26,8 @@ import (
 )
 
 type Store struct {
-	ctx         xcontext.CancelableContext
+	ctx         context.Context
+	cancel      context.CancelFunc
 	wg          sync.WaitGroup
 	releaseOnce sync.Once
 
@@ -57,8 +57,11 @@ func New(config Config) (result *Store, err error) {
 		config.UserAgent = "oscdn"
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	ctx = context.WithValue(ctx, "logger", config.Logger)
 	s := &Store{
-		ctx:    xcontext.WithCancelable2(context.WithValue(context.Background(), "logger", config.Logger)),
+		ctx:    ctx,
+		cancel: cancel,
 		config: config,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
@@ -130,7 +133,7 @@ func New(config Config) (result *Store, err error) {
 
 func (s *Store) Release() (err error) {
 	s.releaseOnce.Do(func() {
-		s.ctx.Cancel()
+		s.cancel()
 		s.wg.Wait()
 		if e := s.lockFile.Release(); e != nil && err == nil {
 			err = fmt.Errorf("unable to release store lock: %w", e)
