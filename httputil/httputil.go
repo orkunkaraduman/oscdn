@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-func SplitHostPort(host string) (domain string, port int, err error) {
-	domain = host
-	if idx := strings.LastIndex(host, ":"); idx >= 0 {
-		domain = host[:idx]
-		sPort := host[idx+1:]
+func SplitHost(addr string) (host string, port int, err error) {
+	host = addr
+	if idx := strings.LastIndex(addr, ":"); idx >= 0 {
+		host = addr[:idx]
+		sPort := addr[idx+1:]
 		var uPort uint64
 		uPort, err = strconv.ParseUint(sPort, 10, 16)
 		if err != nil {
@@ -22,6 +22,24 @@ func SplitHostPort(host string) (domain string, port int, err error) {
 		port = int(uPort)
 	}
 	return
+}
+
+func GetRealIP(req *http.Request) string {
+	var v string
+
+	v = req.Header.Get("X-Real-IP")
+	if v != "" {
+		return v
+	}
+
+	v = strings.TrimSpace(strings.Split(req.Header.Get("X-Forwarded-For"), ",")[0])
+	if v != "" {
+		return v
+	}
+
+	host, _, _ := SplitHost(req.Host)
+
+	return host
 }
 
 func Expires(header http.Header, now time.Time) (expires time.Time) {
