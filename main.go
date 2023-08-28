@@ -90,11 +90,12 @@ func main() {
 	}
 
 	_store, err := store.New(store.Config{
-		Logger:       logng.WithFieldKeyVals("logger", "store"),
-		Path:         flags.Flags.StorePath,
-		TLSConfig:    nil,
-		MaxIdleConns: flags.Flags.StoreMaxIdleConns,
-		UserAgent:    flags.Flags.StoreUserAgent,
+		Logger:        logng.WithFieldKeyVals("logger", "store"),
+		Path:          flags.Flags.StorePath,
+		TLSConfig:     nil,
+		MaxIdleConns:  flags.Flags.StoreMaxIdleConns,
+		UserAgent:     flags.Flags.StoreUserAgent,
+		MinContentAge: flags.Flags.StoreMinContentAge,
 		DefaultHostConfig: &store.HostConfig{
 			MaxSize: 1024 * 1024 * 1024,
 			MaxAge:  24 * time.Hour,
@@ -113,7 +114,6 @@ func main() {
 				DownloadRate:   o.DownloadRate,
 			}
 		},
-		MinContentAge: flags.Flags.MinContentAge,
 	})
 	if err != nil {
 		err = fmt.Errorf("store create error: %w", err)
