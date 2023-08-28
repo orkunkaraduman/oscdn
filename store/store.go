@@ -646,7 +646,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 			s.downloadsMu.Unlock()
 		}
 
-		if written != data.Info.Size {
+		if data.Info.Size >= 0 && written != data.Info.Size {
 			e := errors.New("different content size")
 			logger.V(1).Error(e)
 			if err == nil {
