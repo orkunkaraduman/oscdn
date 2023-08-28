@@ -131,7 +131,7 @@ func main() {
 		Store:        _store,
 		ServerHeader: flags.Flags.ServerHeader,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
-			domain, _, _ := httputil.SplitHostPort(host)
+			domain, _, _ := httputil.SplitHost(host)
 			d, ok := _config.Domains[domain]
 			if !ok {
 				return nil
