@@ -30,8 +30,12 @@ type _Writer struct {
 	ContentEncoding string
 }
 
+func (w *_Writer) Write(p []byte) (n int, err error) {
+	return w.WriteCloser.Write(p)
+}
+
 func (w *_Writer) Prepare(ctx context.Context) bool {
-	w.WriteCloser = ioutil.NopWriteCloser(w)
+	w.WriteCloser = ioutil.NopWriteCloser(w.ResponseWriter)
 	if !w.validate(ctx) {
 		return false
 	}
@@ -165,7 +169,7 @@ func (w *_Writer) setContentRange(ctx context.Context) bool {
 func (w *_Writer) SetContentEncoder(ctx context.Context) bool {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
-	w.WriteCloser = ioutil.NopWriteCloser(w)
+	w.WriteCloser = ioutil.NopWriteCloser(w.ResponseWriter)
 
 	for _, opt := range httputil.ParseOptions(w.Request.Header.Get("Accept-Encoding")) {
 		var q *float64
@@ -185,7 +189,7 @@ func (w *_Writer) SetContentEncoder(ctx context.Context) bool {
 					logger.V(1).Warningf("invalid quality level %f", newLevel)
 				}
 			}
-			w.WriteCloser, _ = gzip.NewWriterLevel(w, level)
+			w.WriteCloser, _ = gzip.NewWriterLevel(w.ResponseWriter, level)
 			w.ContentEncoding = key
 			w.Header().Set("Content-Encoding", w.ContentEncoding)
 			return true
@@ -199,7 +203,7 @@ func (w *_Writer) SetContentEncoder(ctx context.Context) bool {
 					logger.V(1).Warningf("invalid quality level %f", newLevel)
 				}
 			}
-			w.WriteCloser, _ = flate.NewWriter(w, level)
+			w.WriteCloser, _ = flate.NewWriter(w.ResponseWriter, level)
 			w.ContentEncoding = key
 			w.Header().Set("Content-Encoding", w.ContentEncoding)
 			return true
