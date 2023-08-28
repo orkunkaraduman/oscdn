@@ -8,12 +8,12 @@ import (
 
 type CacheControl map[string]string
 
-func ParseCacheControl(directive string) CacheControl {
-	opts := ParseOptions(directive)
-	if len(opts) <= 0 {
-		return nil
+func ParseCacheControl(directive string) (c CacheControl) {
+	c = map[string]string{}
+	for _, opt := range ParseOptions(directive) {
+		c[opt.KeyVals[0].Key] = opt.KeyVals[0].Val
 	}
-	return opts[0].Map
+	return
 }
 
 func (c CacheControl) MaxAge() time.Duration {
