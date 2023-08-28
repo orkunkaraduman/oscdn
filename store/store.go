@@ -548,6 +548,19 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.CreatedAt = now
 	data.Info.ExpiresAt = now
 
+	err = s.moveToTrash(data.Path)
+	if err != nil && !os.IsNotExist(err) {
+		err = fmt.Errorf("unable to move expired data to trash: %w", err)
+		logger.Error(err)
+		return nil, err
+	}
+
+	if hostConfig.MaxSize > 0 && data.Info.Size > hostConfig.MaxSize {
+		err = &SizeExceededError{Size: data.Info.Size}
+		logger.V(1).Error(err)
+		return nil, err
+	}
+
 	if hostConfig.MaxAge > 0 {
 		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
 	}
@@ -566,19 +579,6 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		if data.Info.ExpiresAt.Before(minExpires) {
 			data.Info.ExpiresAt = minExpires
 		}
-	}
-
-	err = s.moveToTrash(data.Path)
-	if err != nil && !os.IsNotExist(err) {
-		err = fmt.Errorf("unable to move expired data to trash: %w", err)
-		logger.Error(err)
-		return nil, err
-	}
-
-	if hostConfig.MaxSize > 0 && data.Info.Size > hostConfig.MaxSize {
-		err = &SizeExceededError{Size: data.Info.Size}
-		logger.V(1).Error(err)
-		return nil, err
 	}
 
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
