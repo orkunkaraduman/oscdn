@@ -215,15 +215,16 @@ func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
 func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRange *ContentRange) (result GetResult, err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}
-
-	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
 
 	var contentRangeNew *ContentRange
 	if contentRange != nil {
@@ -661,15 +662,16 @@ func (s *Store) moveToTrash(sourcePath string) (err error) {
 func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}
-
-	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
 
 	baseURL, keyURL, err := s.getURLs(rawURL, host)
 	if err != nil {
@@ -712,15 +714,16 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	logger = logger.WithFieldKeyVals("host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}
-
-	logger = logger.WithFieldKeyVals("host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
 
 	if host == "" || !hostRgx.MatchString(host) {
 		err = errors.New("invalid host")
@@ -762,6 +765,7 @@ func (s *Store) PurgeAll(ctx context.Context) (err error) {
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}
