@@ -573,6 +573,13 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		}
 	}
 
+	if s.config.MinContentAge > 0 {
+		minExpires := now.Add(s.config.MinContentAge)
+		if data.Info.ExpiresAt.Before(minExpires) {
+			data.Info.ExpiresAt = minExpires
+		}
+	}
+
 	dynamic := ((resp.StatusCode != http.StatusOK || resp.ContentLength < 0) && resp.StatusCode != http.StatusNotFound) ||
 		!data.Info.ExpiresAt.After(now)
 	if dynamic {

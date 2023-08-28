@@ -23,6 +23,7 @@ type Config struct {
 	UserAgent         string
 	DefaultHostConfig *HostConfig
 	GetHostConfig     func(scheme, host string) *HostConfig
+	MinContentAge     time.Duration
 }
 
 type HostConfig struct {
