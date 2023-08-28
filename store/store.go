@@ -615,10 +615,13 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 
 		hash := sha256.New()
 
-		written, err := ioutil.CopyRate(io.MultiWriter(data.Body(), hash), io.LimitReader(resp.Body, data.Info.Size), hostConfig.DownloadBurst, hostConfig.DownloadRate)
-		if err != nil {
-			err = fmt.Errorf("content download error: %w", err)
-			logger.V(1).Error(err)
+		written, copyErr := ioutil.CopyRate(io.MultiWriter(data.Body(), hash), io.LimitReader(resp.Body, data.Info.Size), hostConfig.DownloadBurst, hostConfig.DownloadRate)
+		if copyErr != nil {
+			copyErr = fmt.Errorf("content download error: %w", copyErr)
+			logger.V(1).Error(copyErr)
+			if err == nil {
+				err = copyErr
+			}
 		}
 
 		if e := data.Close(); e != nil {
@@ -646,7 +649,7 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 			s.downloadsMu.Unlock()
 		}
 
-		if data.Info.Size >= 0 && written != data.Info.Size {
+		if copyErr == nil && data.Info.Size >= 0 && written != data.Info.Size {
 			e := errors.New("different content size")
 			logger.V(1).Error(e)
 			if err == nil {
