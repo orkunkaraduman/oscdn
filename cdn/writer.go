@@ -112,7 +112,7 @@ func (w *_Writer) setStoreURL(ctx context.Context) bool {
 	w.StoreURL.Scheme = w.HostConfig.Origin.Scheme
 	w.StoreURL.Host = w.HostConfig.Origin.Host
 
-	if w.HostConfig.DomainOverride {
+	if w.HostConfig.HostOverride {
 		w.StoreHost = host
 		if originPort > 0 {
 			w.StoreHost = fmt.Sprintf("%s:%d", host, originPort)

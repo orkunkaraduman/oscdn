@@ -96,10 +96,8 @@ func main() {
 		MaxIdleConns: flags.Flags.StoreMaxIdleConns,
 		UserAgent:    flags.Flags.StoreUserAgent,
 		DefaultHostConfig: &store.HostConfig{
-			MaxSize:       1024 * 1024 * 1024,
-			MaxAge:        24 * time.Hour,
-			DownloadBurst: 0,
-			DownloadRate:  0,
+			MaxSize: 1024 * 1024 * 1024,
+			MaxAge:  24 * time.Hour,
 		},
 		GetHostConfig: func(scheme, host string) *store.HostConfig {
 			o, ok := _config.Origins[host]
@@ -131,8 +129,8 @@ func main() {
 		Store:        _store,
 		ServerHeader: flags.Flags.ServerHeader,
 		GetHostConfig: func(scheme, host string) *cdn.HostConfig {
-			domain, _, _ := httputil.SplitHost(host)
-			d, ok := _config.Domains[domain]
+			pureHost, _, _ := httputil.SplitHost(host)
+			d, ok := _config.Hosts[pureHost]
 			if !ok {
 				return nil
 			}
@@ -143,7 +141,7 @@ func main() {
 			result := &cdn.HostConfig{
 				HttpsRedirect:     d.HttpsRedirect,
 				HttpsRedirectPort: d.HttpsRedirectPort,
-				DomainOverride:    d.DomainOverride,
+				HostOverride:      d.HostOverride,
 				IgnoreQuery:       d.IgnoreQuery,
 				UploadBurst:       d.UploadBurst,
 				UploadRate:        d.UploadRate,

@@ -8,7 +8,7 @@ origins:
     downloadBurst: 0
     downloadRate: 0
 
-domains:
+hosts:
   cdn.example.com:
     tls:
       cert: |
@@ -63,7 +63,8 @@ domains:
     origin: speed.hetzner.de
     httpsRedirect: false
     httpsRedirectPort: 0
-    domainOverride: false
+    hostOverride: false
     ignoreQuery: false
+    compressionMaxSize: 102400
     uploadBurst: 0
     uploadRate: 0

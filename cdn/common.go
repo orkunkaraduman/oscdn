@@ -7,7 +7,7 @@ type HostConfig struct {
 	}
 	HttpsRedirect      bool
 	HttpsRedirectPort  int
-	DomainOverride     bool
+	HostOverride       bool
 	IgnoreQuery        bool
 	CompressionMaxSize int64
 	UploadBurst        int64
