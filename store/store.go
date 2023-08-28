@@ -658,12 +658,9 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		}
 
 		if err != nil && download == downloadNew {
-			err = s.moveToTrash(data.Path)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					err = fmt.Errorf("unable to move incomplete data to trash: %w", err)
-					logger.Error(err)
-				}
+			if e := s.moveToTrash(data.Path); e != nil && !os.IsNotExist(e) {
+				e = fmt.Errorf("unable to move incomplete data to trash: %w", e)
+				logger.Error(e)
 			}
 		}
 	}()
