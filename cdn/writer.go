@@ -20,6 +20,7 @@ import (
 )
 
 type _Writer struct {
+	io.WriteCloser
 	http.ResponseWriter
 	Request         *http.Request
 	HostConfig      *HostConfig
@@ -27,11 +28,10 @@ type _Writer struct {
 	StoreHost       string
 	ContentRange    *store.ContentRange
 	ContentEncoding string
-
-	encoder io.WriteCloser
 }
 
 func (w *_Writer) Prepare(ctx context.Context) bool {
+	w.WriteCloser = ioutil.NopWriteCloser(w)
 	if !w.validate(ctx) {
 		return false
 	}
@@ -162,10 +162,10 @@ func (w *_Writer) setContentRange(ctx context.Context) bool {
 	return true
 }
 
-func (w *_Writer) setEncoder(ctx context.Context) bool {
+func (w *_Writer) SetContentEncoder(ctx context.Context) bool {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
-	w.encoder = ioutil.NopWriteCloser(w)
+	w.WriteCloser = ioutil.NopWriteCloser(w)
 
 	for _, opt := range httputil.ParseOptions(w.Request.Header.Get("Accept-Encoding")) {
 		var q *float64
@@ -185,8 +185,10 @@ func (w *_Writer) setEncoder(ctx context.Context) bool {
 					logger.V(1).Warningf("invalid quality level %f", newLevel)
 				}
 			}
+			w.WriteCloser, _ = gzip.NewWriterLevel(w, level)
 			w.ContentEncoding = key
-			w.encoder, _ = gzip.NewWriterLevel(w, level)
+			w.Header().Set("Content-Encoding", w.ContentEncoding)
+			return true
 		case "deflate":
 			level := flate.DefaultCompression
 			if q != nil {
@@ -197,10 +199,12 @@ func (w *_Writer) setEncoder(ctx context.Context) bool {
 					logger.V(1).Warningf("invalid quality level %f", newLevel)
 				}
 			}
+			w.WriteCloser, _ = flate.NewWriter(w, level)
 			w.ContentEncoding = key
-			w.encoder, _ = flate.NewWriter(w, level)
+			w.Header().Set("Content-Encoding", w.ContentEncoding)
+			return true
 		}
 	}
 
-	return true
+	return false
 }

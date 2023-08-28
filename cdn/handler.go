@@ -2,17 +2,13 @@ package cdn
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/goinsane/logng"
-	"github.com/goinsane/xcontext"
 
 	"github.com/orkunkaraduman/oscdn/httputil"
 	"github.com/orkunkaraduman/oscdn/ioutil"
@@ -39,11 +35,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.URL.Host = strings.TrimSuffix(req.Host, ":443")
 	}
 
-	domain, _, _ := httputil.SplitHostPort(req.URL.Host)
-	remoteIP, _, _ := httputil.SplitHostPort(req.RemoteAddr)
+	remoteIP, _, _ := httputil.SplitHost(req.RemoteAddr)
+	realIP := httputil.GetRealIP(req)
 
 	logger = logger.WithFieldKeyVals("requestScheme", req.URL.Scheme, "requestHost", req.URL.Host,
-		"requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr, "remoteIP", remoteIP)
+		"requestMethod", req.Method, "requestURI", req.RequestURI, "remoteAddr", req.RemoteAddr, "remoteIP", remoteIP,
+		"realIP", realIP)
 	ctx = context.WithValue(ctx, "logger", logger)
 
 	err = ctx.Err()
@@ -56,90 +53,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if h.ServerHeader != "" {
 		w.Header().Set("Server", h.ServerHeader)
 	}
+	w.Header().Set("Accept-Ranges", "bytes")
 
-	if (req.URL.Scheme != "http" && req.URL.Scheme != "https") ||
-		req.URL.Opaque != "" ||
-		req.URL.User != nil ||
-		req.URL.Host == "" ||
-		req.URL.Fragment != "" {
-		err = errors.New("invalid cdn url")
-		logger.V(1).Error(err)
-		http.Error(w, "invalid url", http.StatusBadRequest)
+	writer := &_Writer{
+		ResponseWriter: w,
+		Request:        req,
+		HostConfig:     h.GetHostConfig(req.URL.Scheme, req.URL.Host),
+	}
+
+	if !writer.Prepare(ctx) {
 		return
 	}
 
-	switch req.Method {
-	case http.MethodHead:
-	case http.MethodGet:
-	default:
-		err = fmt.Errorf("method %s not allowed", req.Method)
-		logger.V(1).Error(err)
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-
-	contentRange, err := getContentRange(req.Header)
+	getResult, err := h.Store.Get(ctx, writer.StoreURL.String(), writer.StoreHost, writer.ContentRange)
 	if err != nil {
-		err = fmt.Errorf("invalid content range: %w", err)
-		logger.V(1).Error(err)
-		http.Error(w, "invalid content range", http.StatusBadRequest)
-		return
-	}
-
-	var hostConfig *HostConfig
-	if h.GetHostConfig != nil {
-		hostConfig = h.GetHostConfig(req.URL.Scheme, req.URL.Host)
-		if hostConfig == nil {
-			err = errors.New("not allowed host")
-			logger.V(1).Error(err)
-			http.Error(w, "not allowed host", http.StatusForbidden)
-			return
-		}
-	}
-
-	storeURL := &url.URL{
-		Scheme:   req.URL.Scheme,
-		Host:     req.URL.Host,
-		Path:     req.URL.Path,
-		RawQuery: req.URL.RawQuery,
-	}
-	storeHost := ""
-
-	if hostConfig != nil {
-		_, originPort, _ := httputil.SplitHostPort(hostConfig.Origin.Host)
-
-		if req.URL.Scheme == "http" && hostConfig.HttpsRedirect {
-			storeURL.Scheme = "https"
-			storeURL.Host = domain
-			if hostConfig.HttpsRedirectPort > 0 && hostConfig.HttpsRedirectPort != 443 {
-				storeURL.Host = fmt.Sprintf("%s:%d", domain, hostConfig.HttpsRedirectPort)
-			}
-			w.Header().Set("Location", storeURL.String())
-			http.Error(w, http.StatusText(http.StatusFound), http.StatusFound)
-			return
-		}
-
-		storeURL.Scheme = hostConfig.Origin.Scheme
-		storeURL.Host = hostConfig.Origin.Host
-
-		if hostConfig.DomainOverride {
-			storeHost = domain
-			if originPort > 0 {
-				storeHost = fmt.Sprintf("%s:%d", domain, originPort)
-			}
-		}
-
-		if hostConfig.IgnoreQuery {
-			storeURL.RawQuery = ""
-		}
-	}
-
-	getResult, err := h.Store.Get(ctx, storeURL.String(), storeHost, contentRange)
-	if err != nil {
-		if xcontext.IsContextError(err) {
-			logger.V(1).Error(err)
-			return
-		}
 		switch err.(type) {
 		case *store.RequestError:
 			http.Error(w, "origin not responding", http.StatusBadGateway)
@@ -150,6 +77,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
+		logger.V(1).Error(err)
 		return
 	}
 	defer func(getResult store.GetResult) {
@@ -169,13 +97,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Expires", getResult.ExpiresAt.Format(time.RFC1123))
 
-	writer, contentEncoding := contentEncoder(w, req.Header.Get("Accept-Encoding"))
-	if contentEncoding != "" {
-		w.Header().Set("Content-Encoding", contentEncoding)
-	}
-
-	if getResult.StatusCode != http.StatusOK || getResult.ContentRange == nil {
-		w.Header().Set("Content-Length", strconv.FormatInt(getResult.Size, 10))
+	if getResult.ContentRange == nil {
+		if getResult.Size <= 100*1024 {
+			writer.SetContentEncoder(ctx)
+		}
+		if writer.ContentEncoding == "" {
+			w.Header().Set("Content-Length", strconv.FormatInt(getResult.Size, 10))
+		}
 		w.WriteHeader(getResult.StatusCode)
 	} else {
 		contentLength := getResult.ContentRange.End - getResult.ContentRange.Start
@@ -189,15 +117,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case http.MethodHead:
 		err = nil
 	case http.MethodGet:
-		var uploadBurst int64
-		var uploadRate int64
-		if hostConfig != nil {
-			uploadBurst = hostConfig.UploadBurst
-			uploadRate = hostConfig.UploadRate
-		}
-		_, err = ioutil.CopyRate(writer, getResult, uploadBurst, uploadRate)
-		if closer, ok := writer.(io.Closer); ok && err == nil {
-			err = closer.Close()
+		_, err = ioutil.CopyRate(writer, getResult, writer.HostConfig.UploadBurst, writer.HostConfig.UploadRate)
+		if err == nil {
+			err = writer.Close()
 		}
 	}
 	if err != nil {
