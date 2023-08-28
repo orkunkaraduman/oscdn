@@ -94,7 +94,7 @@ func (a *MgmtApp) Stop() {
 }
 
 func (a *MgmtApp) httpHandler(w http.ResponseWriter, req *http.Request) {
-	logger := a.Logger
+	logger := a.Logger.WithFieldKeyVals("requestHash", generateRequestHash())
 
 	defer func() {
 		if p := recover(); p != nil {
