@@ -228,7 +228,7 @@ func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRang
 		contentRangeNew = &(*contentRange)
 	}
 
-	result.ReadCloser = io.NopCloser(&ioutil.NopReader{Err: io.EOF})
+	result.ReadCloser = io.NopCloser(&ioutil.ErrorReader{Err: io.EOF})
 
 	baseURL, keyURL, err := s.getURLs(rawURL, host)
 	if err != nil {
