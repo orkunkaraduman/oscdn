@@ -5,11 +5,11 @@ type HostConfig struct {
 		Scheme string
 		Host   string
 	}
-	HttpsRedirect     bool
-	HttpsRedirectPort int
-	DomainOverride    bool
-	IgnoreQuery       bool
-	CompressMimeTypes []string
-	UploadBurst       int64
-	UploadRate        int64
+	HttpsRedirect      bool
+	HttpsRedirectPort  int
+	DomainOverride     bool
+	IgnoreQuery        bool
+	CompressionMaxSize int64
+	UploadBurst        int64
+	UploadRate         int64
 }

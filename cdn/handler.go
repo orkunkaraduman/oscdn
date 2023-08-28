@@ -97,7 +97,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Expires", getResult.ExpiresAt.Format(time.RFC1123))
 
 	if getResult.ContentRange == nil {
-		if getResult.Size <= 100*1024 {
+		if getResult.Size <= writer.HostConfig.CompressionMaxSize {
 			writer.SetContentEncoder(ctx)
 		}
 		if writer.ContentEncoding == "" {
