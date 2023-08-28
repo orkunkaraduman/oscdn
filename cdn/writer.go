@@ -186,7 +186,7 @@ func (w *_Writer) SetContentEncoder(ctx context.Context) bool {
 				if gzip.NoCompression <= newLevel && newLevel <= gzip.BestCompression {
 					level = newLevel
 				} else {
-					logger.V(1).Warningf("invalid quality level %f", newLevel)
+					logger.V(1).Warningf("invalid quality level %d", newLevel)
 				}
 			}
 			w.WriteCloser, _ = gzip.NewWriterLevel(w.ResponseWriter, level)
@@ -200,7 +200,7 @@ func (w *_Writer) SetContentEncoder(ctx context.Context) bool {
 				if flate.NoCompression <= newLevel && newLevel <= flate.BestCompression {
 					level = newLevel
 				} else {
-					logger.V(1).Warningf("invalid quality level %f", newLevel)
+					logger.V(1).Warningf("invalid quality level %d", newLevel)
 				}
 			}
 			w.WriteCloser, _ = flate.NewWriter(w.ResponseWriter, level)
