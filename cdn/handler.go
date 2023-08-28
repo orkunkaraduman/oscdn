@@ -77,7 +77,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
-		logger.V(1).Error(err)
 		return
 	}
 	defer func(getResult store.GetResult) {
