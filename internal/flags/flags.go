@@ -12,7 +12,7 @@ type _Flags struct {
 	Verbose           int           `default:"0"`
 	Debug             bool          `default:"false"`
 	TerminateTimeout  time.Duration `default:"60s"`
-	QuitTimeout       time.Duration `default:"30s"`
+	QuitTimeout       time.Duration `default:"120s"`
 	Config            string        `default:"config.yaml"`
 	StorePath         string        `default:""`
 	StoreMaxIdleConns int           `default:"100"`
@@ -25,6 +25,7 @@ type _Flags struct {
 	MaxConns          int32         `default:"1000"`
 	HandleH2c         bool          `default:"false"`
 	ServerHeader      string        `default:"oscdn"`
+	MinContentAge     time.Duration `default:"30s"`
 }
 
 func (f *_Flags) Validate() error {

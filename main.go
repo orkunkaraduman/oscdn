@@ -113,6 +113,7 @@ func main() {
 				DownloadRate:   o.DownloadRate,
 			}
 		},
+		MinContentAge: flags.Flags.MinContentAge,
 	})
 	if err != nil {
 		err = fmt.Errorf("store create error: %w", err)
