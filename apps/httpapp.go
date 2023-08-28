@@ -154,7 +154,7 @@ func (a *HttpApp) Stop() {
 }
 
 func (a *HttpApp) httpHandler(w http.ResponseWriter, req *http.Request) {
-	logger := a.Logger
+	logger := a.Logger.WithFieldKeyVals("requestHash", generateRequestHash())
 
 	defer func() {
 		if p := recover(); p != nil {

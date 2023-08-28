@@ -215,15 +215,16 @@ func (s *Store) getDataPath(baseURL, keyURL *url.URL) string {
 func (s *Store) Get(ctx context.Context, rawURL string, host string, contentRange *ContentRange) (result GetResult, err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}
-
-	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
 
 	var contentRangeNew *ContentRange
 	if contentRange != nil {
@@ -546,12 +547,6 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 	data.Info.Size = resp.ContentLength
 	data.Info.CreatedAt = now
 	data.Info.ExpiresAt = now
-	if hostConfig.MaxAge > 0 {
-		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
-	}
-	if hostConfig.MaxAge404 > 0 && resp.StatusCode == http.StatusNotFound {
-		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge404)
-	}
 
 	err = s.moveToTrash(data.Path)
 	if err != nil && !os.IsNotExist(err) {
@@ -566,9 +561,23 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 		return nil, err
 	}
 
+	if hostConfig.MaxAge > 0 {
+		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge)
+	}
+	if hostConfig.MaxAge404 > 0 && resp.StatusCode == http.StatusNotFound {
+		data.Info.ExpiresAt = now.Add(hostConfig.MaxAge404)
+	}
+
 	if !hostConfig.MaxAgeOverride {
 		if expires := httpExpires(resp.Header, now); !expires.IsZero() && !expires.After(data.Info.ExpiresAt) {
 			data.Info.ExpiresAt = expires
+		}
+	}
+
+	if s.config.MinContentAge > 0 {
+		minExpires := now.Add(s.config.MinContentAge)
+		if data.Info.ExpiresAt.Before(minExpires) {
+			data.Info.ExpiresAt = minExpires
 		}
 	}
 
@@ -604,13 +613,23 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 			_ = body.Close()
 		}(resp.Body)
 
-		written, err := ioutil.CopyRate(data.Body(), io.LimitReader(resp.Body, data.Info.Size), hostConfig.DownloadBurst, hostConfig.DownloadRate)
-		if err != nil {
-			err = fmt.Errorf("content download error: %w", err)
-			logger.V(1).Error(err)
+		hash := sha256.New()
+
+		written, copyErr := ioutil.CopyRate(io.MultiWriter(data.Body(), hash), io.LimitReader(resp.Body, data.Info.Size), hostConfig.DownloadBurst, hostConfig.DownloadRate)
+		if copyErr != nil {
+			copyErr = fmt.Errorf("content download error: %w", copyErr)
+			logger.V(1).Error(copyErr)
+			if err == nil {
+				err = copyErr
+			}
 		}
 
-		_ = data.Close()
+		if e := data.Close(); e != nil {
+			logger.Error(e)
+			if err == nil {
+				err = e
+			}
+		}
 		close(download)
 
 		hostLocker := s.hostLock.Locker(baseURL.Host)
@@ -630,18 +649,18 @@ func (s *Store) startDownload(ctx context.Context, baseURL, keyURL *url.URL) (do
 			s.downloadsMu.Unlock()
 		}
 
-		if err == nil && written != data.Info.Size {
-			err = errors.New("different content size")
-			logger.V(1).Error(err)
+		if copyErr == nil && data.Info.Size >= 0 && written != data.Info.Size {
+			e := errors.New("different content size")
+			logger.V(1).Error(e)
+			if err == nil {
+				err = e
+			}
 		}
 
 		if err != nil && download == downloadNew {
-			err = s.moveToTrash(data.Path)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					err = fmt.Errorf("unable to move incomplete data to trash: %w", err)
-					logger.Error(err)
-				}
+			if e := s.moveToTrash(data.Path); e != nil && !os.IsNotExist(e) {
+				e = fmt.Errorf("unable to move incomplete data to trash: %w", e)
+				logger.Error(e)
 			}
 		}
 	}()
@@ -661,15 +680,16 @@ func (s *Store) moveToTrash(sourcePath string) (err error) {
 func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}
-
-	logger = logger.WithFieldKeyVals("rawURL", rawURL, "host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
 
 	baseURL, keyURL, err := s.getURLs(rawURL, host)
 	if err != nil {
@@ -712,15 +732,16 @@ func (s *Store) Purge(ctx context.Context, rawURL string, host string) (err erro
 func (s *Store) PurgeHost(ctx context.Context, host string) (err error) {
 	logger, _ := ctx.Value("logger").(*logng.Logger)
 
+	logger = logger.WithFieldKeyVals("host", host)
+	ctx = context.WithValue(ctx, "logger", logger)
+
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}
-
-	logger = logger.WithFieldKeyVals("host", host)
-	ctx = context.WithValue(ctx, "logger", logger)
 
 	if host == "" || !hostRgx.MatchString(host) {
 		err = errors.New("invalid host")
@@ -762,6 +783,7 @@ func (s *Store) PurgeAll(ctx context.Context) (err error) {
 	select {
 	case <-s.ctx.Done():
 		err = ErrStoreReleased
+		logger.Error(err)
 		return
 	default:
 	}

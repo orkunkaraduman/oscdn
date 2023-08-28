@@ -21,6 +21,7 @@ type Config struct {
 	TLSConfig         *tls.Config
 	MaxIdleConns      int
 	UserAgent         string
+	MinContentAge     time.Duration
 	DefaultHostConfig *HostConfig
 	GetHostConfig     func(scheme, host string) *HostConfig
 }

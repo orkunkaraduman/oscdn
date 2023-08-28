@@ -12,12 +12,10 @@ github.com/goinsane/flagbind v0.2.1 h1:pi9qQWOpSRq2ttVyXtC+fcepmT9AGX2otYMIEGyYR
 github.com/goinsane/flagbind v0.2.1/go.mod h1:qrGiSJyH0yXugjOKOEp4u4uz3FtO9UCRV8FqvDzxGms=
 github.com/goinsane/flagconf v0.2.0 h1:XBU24wJ/QU7SjFLbY8DuT+FLBilcrxFyVWDKoDjugEU=
 github.com/goinsane/flagconf v0.2.0/go.mod h1:4lCWqHygHwHSTWehigHwvrTeB/d4mml8/TWIiVYuIFs=
-github.com/goinsane/ioshape v0.6.2 h1:HGWJGZeJgrH0HEuiFTh4ELWopP6jAtXsb7zoSuwhBVo=
-github.com/goinsane/ioshape v0.6.2/go.mod h1:h5WgKdwRsAv75QcRkJ1wBqALFH3i8tjkQpHtoRIjCTA=
+github.com/goinsane/ioshape v0.7.0 h1:eCOK9/jKXxGIjlRtQxlwkwF19nke5F+PlHx2Nqndi7E=
+github.com/goinsane/ioshape v0.7.0/go.mod h1:Pxky8Zxn+MomG3jVTZP+IPKXsRA36K+AsGKAf55iXdI=
 github.com/goinsane/logng v1.0.0 h1:pOB7q6Xx9eZOK/G/DJYR7oc1q/wBk0HGrqJuLJyp0jQ=
 github.com/goinsane/logng v1.0.0/go.mod h1:uG5zLQkWgDFRHI6Rl4QK6Jck/hHLaHg0OUEy2ELUXDM=
-github.com/goinsane/xcontext v1.7.0 h1:Jz6Gh2WCOu/u84d2iCrPUMfOwFAKLfCDs4mLGTunN+8=
-github.com/goinsane/xcontext v1.7.0/go.mod h1:y+fK+cXBf9T6MBP7XFXQbYrsyhzlhRVVIIRVTxc6QjY=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/protobuf v1.3.5/go.mod h1:6O5/vntMXwX2lRkT1hjjk0nAC1IDOTvTlVgjlRvqsdk=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
